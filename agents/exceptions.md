@@ -1,12 +1,33 @@
 # Exceptions
 
-Exceptions in Dirthara follow the same convention as PHP's built-in exceptions. Each package has a base exception that 
-extends from `Exception`. All exceptions thrown by the Dirthara package extend from this base exception.
+Exceptions in Dirthara follow the same convention as PHP's built-in exceptions.
+Each package defines one package-wide exception interface that extends
+`Throwable`; in this package that is `Dirthara\Http\Exception\HttpException`.
+Every exception the package throws implements it, so a caller catches
+everything this package raises with a single type.
 
-The package base exception accepts an optional `array<string, mixed> $context` as
-the fourth constructor argument, after message, code, and previous. It exposes
-this data through `getContext(): array` and stores it in a protected property.
-Specialized exceptions inherit this behaviour.
+There is no base exception class. A concrete exception extends the SPL class
+that describes the failure and implements the package interface alongside it:
+`InvalidArgumentException` when a caller passed something the package cannot
+accept, `RuntimeException` when the operation failed while running. Catching
+`InvalidArgumentException` still catches these, and the package never asks a
+caller to give up an inheritance slot it does not own.
+
+Concrete exceptions are `final`. The interface is the extension point.
+
+The shared behaviour lives in the `HasExceptionContext` trait, which holds a
+protected `array<string, mixed> $context` and implements `getContext(): array`
+and `addContext(array $context): static`. Every exception uses the trait and
+accepts an optional `array<string, mixed> $context` as the fourth constructor
+argument, after message, code, and previous, assigning it after the
+`parent::__construct()` call.
+
+Exceptions are built through named static factories, never with `new` at the
+throw site, so every message and every piece of context for one failure is
+written in one place. A factory passes its arguments by name — `message:`,
+`previous:`, `context:` — and attaches context through the constructor rather
+than chaining `addContext()`. Reserve `addContext()` for adding what a later
+frame knows to an exception that already exists.
 
 Exceptions carry data without logging themselves or depending on a logger package.
 The application exception handler can pass `getContext()` to a PSR-3 logger,
@@ -27,7 +48,7 @@ Catch the specific types, not `Throwable`. A `TypeError` or a `LogicException`
 is a bug in this package rather than a failure of the operation, and turning one
 into a domain exception hides it.
 
-An exception that is already a Dirthara exception from this same package is not
+An exception that already implements this package's exception interface is not
 rewrapped. Add what you know with `addContext()` and rethrow it, so its specific
 type survives for the caller. An exception from another Dirthara package is
 wrapped like any other dependency's: which package this one is built on is not
