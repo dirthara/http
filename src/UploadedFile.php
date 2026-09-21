@@ -217,7 +217,7 @@ final class UploadedFile implements UploadedFileInterface
         $offset = 0;
 
         while ($offset < $length) {
-            $written = fwrite($target, substr($contents, $offset));
+            $written = @fwrite($target, substr($contents, $offset));
 
             if ($written === false || $written === 0) {
                 throw UploadedFileException::unableToWrite();

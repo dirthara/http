@@ -9,7 +9,7 @@ trait HasExceptionContext
     /**
      * @var array<string, mixed>
      */
-    protected array $context = [] {
+    public protected(set) array $context = [] {
         get {
             return $this->context;
         }
