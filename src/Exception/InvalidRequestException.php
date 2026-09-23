@@ -35,4 +35,33 @@ final class InvalidRequestException extends InvalidArgumentException implements 
             message: 'The HTTP request target cannot be empty or contain whitespace or control characters.',
         );
     }
+
+    public static function invalidUploadedFile(string $path, mixed $file): self
+    {
+        return new self(
+            message: sprintf(
+                'The uploaded file "%s" must be an UploadedFileInterface or an array of them, "%s" given.',
+                $path,
+                get_debug_type($file),
+            ),
+            context: [
+                'path' => $path,
+                'type' => get_debug_type($file),
+            ],
+        );
+    }
+
+    public static function invalidParsedBody(mixed $data): self
+    {
+        // Only the type is kept: a parsed body can carry passwords and other form input.
+        return new self(
+            message: sprintf(
+                'The parsed body must be null, an array, or an object, "%s" given.',
+                get_debug_type($data),
+            ),
+            context: [
+                'type' => get_debug_type($data),
+            ],
+        );
+    }
 }
