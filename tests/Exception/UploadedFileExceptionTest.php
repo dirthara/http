@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Dirthara\Http\Tests\Exception;
 
+use RuntimeException;
 use PHPUnit\Framework\TestCase;
 use PHPUnit\Framework\Attributes\Test;
 use Dirthara\Http\Exception\UploadedFileException;
@@ -28,6 +29,27 @@ final class UploadedFileExceptionTest extends TestCase
 
         self::assertSame($exception, $exception->addContext(['error' => 0, 'targetPath' => '/tmp/target']));
         self::assertSame(['error' => 0, 'targetPath' => '/tmp/target'], $exception->context);
+    }
+
+    #[Test]
+    public function it_wraps_a_throwable_and_keeps_its_int_code(): void
+    {
+        $previous = new RuntimeException('Read failed.', 5);
+        $exception = UploadedFileException::fromThrowable($previous);
+
+        self::assertSame('Read failed.', $exception->getMessage());
+        self::assertSame(5, $exception->getCode());
+        self::assertSame($previous, $exception->getPrevious());
+    }
+
+    #[Test]
+    public function it_drops_a_string_code_from_a_wrapped_throwable(): void
+    {
+        $previous = new class('Query failed.') extends RuntimeException {
+            protected $code = 'HY000';
+        };
+
+        self::assertSame(0, UploadedFileException::fromThrowable($previous)->getCode());
     }
 
     #[Test]

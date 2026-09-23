@@ -21,9 +21,9 @@ final class InvalidUriException extends InvalidArgumentException implements Http
         $this->context = $context;
     }
 
-    public static function forInvalidUri(string $uri, ?Throwable $previous = null): self
+    public static function forInvalidUri(string $uri): self
     {
-        return new self(message: sprintf('The given URI "%s" is invalid.', $uri), previous: $previous, context: [
+        return new self(message: sprintf('The given URI "%s" is invalid.', $uri), context: [
             'uri' => $uri,
         ]);
     }

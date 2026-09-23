@@ -78,6 +78,16 @@ final class UploadedFileException extends RuntimeException implements HttpExcept
 
     public static function fromThrowable(Throwable $throwable): self
     {
-        return new self(message: $throwable->getMessage(), code: $throwable->getCode(), previous: $throwable);
+        // A PDOException reports a string SQLSTATE as its code, which an int code cannot hold.
+        $code = $throwable->getCode();
+
+        return new self(
+            message: $throwable->getMessage(),
+            code: is_int($code) ? $code : 0,
+            previous: $throwable,
+            context: [
+                'sqlState' => is_int($code) ? null : $code,
+            ],
+        );
     }
 }

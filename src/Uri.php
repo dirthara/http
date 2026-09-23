@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Dirthara\Http;
 
+use SensitiveParameter;
 use Psr\Http\Message\UriInterface;
 use Dirthara\Http\Exception\InvalidUriException;
 
@@ -16,6 +17,12 @@ final class Uri implements UriInterface
         'http' => 80,
         'https' => 443,
     ];
+
+    private const string SCHEME_PATTERN = '/^[a-z][a-z0-9+.-]*$/iD';
+
+    private const string HOST_PATTERN = '/^(?:[a-z0-9._~!$&\'()*+,;=-]|%[a-f0-9]{2})+$/iD';
+
+    private const string IP_FUTURE_PATTERN = '/^v[a-f0-9]+\.[a-z0-9._~!$&\'()*+,;=:-]+$/iD';
 
     private string $scheme = '';
 
@@ -40,45 +47,41 @@ final class Uri implements UriInterface
             return;
         }
 
-        try {
-            $parts = parse_url($uri);
-        } catch (\ValueError $exception) {
-            throw InvalidUriException::forInvalidUri($uri, $exception);
-        }
+        $parts = parse_url($uri);
 
         if ($parts === false) {
             throw InvalidUriException::forInvalidUri($uri);
         }
 
-        if (isset($parts['scheme'])) {
+        if (array_key_exists('scheme', $parts)) {
             $this->scheme = $this->normalizeScheme($parts['scheme']);
         }
 
-        if (isset($parts['user'])) {
+        if (array_key_exists('user', $parts)) {
             $this->userInfo = $this->encodeUserInfo($parts['user']);
 
-            if (isset($parts['pass'])) {
+            if (array_key_exists('pass', $parts)) {
                 $this->userInfo .= ':' . $this->encodeUserInfo($parts['pass']);
             }
         }
 
-        if (isset($parts['host'])) {
+        if (array_key_exists('host', $parts)) {
             $this->host = $this->normalizeHost($parts['host']);
         }
 
-        if (isset($parts['port'])) {
+        if (array_key_exists('port', $parts)) {
             $this->port = $this->validatePort($parts['port']);
         }
 
-        if (isset($parts['path'])) {
+        if (array_key_exists('path', $parts)) {
             $this->path = $this->encodePath($parts['path']);
         }
 
-        if (isset($parts['query'])) {
+        if (array_key_exists('query', $parts)) {
             $this->query = $this->encodeQueryOrFragment($parts['query']);
         }
 
-        if (isset($parts['fragment'])) {
+        if (array_key_exists('fragment', $parts)) {
             $this->fragment = $this->encodeQueryOrFragment($parts['fragment']);
         }
     }
@@ -127,7 +130,7 @@ final class Uri implements UriInterface
             return null;
         }
 
-        if (isset(self::STANDARD_PORTS[$this->scheme]) && self::STANDARD_PORTS[$this->scheme] === $this->port) {
+        if ((self::STANDARD_PORTS[$this->scheme] ?? null) === $this->port) {
             return null;
         }
 
@@ -165,11 +168,11 @@ final class Uri implements UriInterface
         ]);
     }
 
-    public function withUserInfo(string $user, #[\SensitiveParameter] ?string $password = null): self
+    public function withUserInfo(string $user, #[SensitiveParameter] ?string $password = null): self
     {
-        if ($user === '') {
-            $userInfo = '';
-        } else {
+        $userInfo = '';
+
+        if ($user !== '') {
             $userInfo = self::encodeUserInfo($user);
 
             if ($password !== null) {
@@ -275,12 +278,12 @@ final class Uri implements UriInterface
 
         $path = $this->path;
 
-        if ($authority !== '') {
-            if ($path !== '' && $path[0] !== '/') {
-                $path = '/' . $path;
-            }
-        } elseif (str_starts_with($path, '//')) {
-            $path = '/' . ltrim($path, '/');
+        if ($authority !== '' && $path !== '' && $path[0] !== '/') {
+            $path = '/' . $path;
+        }
+
+        if ($authority === '' && str_starts_with($path, '//')) {
+            $path = '/' . ltrim($path, characters: '/');
         }
 
         $uri .= $path;
@@ -305,7 +308,7 @@ final class Uri implements UriInterface
             return '';
         }
 
-        if (!preg_match('/^[a-z][a-z0-9+.-]*$/i', $scheme)) {
+        if (!preg_match(self::SCHEME_PATTERN, $scheme)) {
             throw InvalidUriException::invalidScheme($scheme);
         }
 
@@ -325,7 +328,7 @@ final class Uri implements UriInterface
             return $this->normalizeIpLiteral($host);
         }
 
-        if (!preg_match('/^(?:[a-z0-9._~!$&\'()*+,;=-]|%[a-f0-9]{2})+$/i', $host)) {
+        if (!preg_match(self::HOST_PATTERN, $host)) {
             throw InvalidUriException::invalidHost($host);
         }
 
@@ -341,9 +344,9 @@ final class Uri implements UriInterface
             throw InvalidUriException::invalidIpLiteralHost($host);
         }
 
-        $literal = substr($host, 1, -1);
+        $literal = substr($host, offset: 1, length: -1);
         $isIpv6 = filter_var($literal, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6) !== false;
-        $isIpvFuture = preg_match('/^v[a-f0-9]+\.[a-z0-9._~!$&\'()*+,;=:-]+$/i', $literal) === 1;
+        $isIpvFuture = preg_match(self::IP_FUTURE_PATTERN, $literal) === 1;
 
         if (!$isIpv6 && !$isIpvFuture) {
             throw InvalidUriException::invalidIpLiteralHost($host);
@@ -393,7 +396,7 @@ final class Uri implements UriInterface
                 && ctype_xdigit($value[$index + 1])
                 && ctype_xdigit($value[$index + 2])
             ) {
-                $encoded .= substr($value, $index, 3);
+                $encoded .= substr($value, $index, length: 3);
                 $index += 2;
 
                 continue;

@@ -39,7 +39,7 @@ final class UploadedFile implements UploadedFileInterface
         private readonly ?string $clientMediaType = null,
         private readonly ?string $sourcePath = null,
     ) {
-        if (!in_array($error, self::VALID_ERRORS, true)) {
+        if (!in_array($error, self::VALID_ERRORS, strict: true)) {
             throw InvalidUploadedFileException::invalidError($error);
         }
 
@@ -61,19 +61,9 @@ final class UploadedFile implements UploadedFileInterface
      */
     public function getStream(): StreamInterface
     {
-        if ($this->moved) {
-            throw UploadedFileException::alreadyMoved();
-        }
+        $this->assertAvailable();
 
-        if ($this->error !== UPLOAD_ERR_OK) {
-            throw UploadedFileException::uploadFailed($this->error);
-        }
-
-        if ($this->stream === null) {
-            throw UploadedFileException::streamUnavailable();
-        }
-
-        return $this->stream;
+        return $this->stream ?? throw UploadedFileException::streamUnavailable();
     }
 
     /**
@@ -83,33 +73,21 @@ final class UploadedFile implements UploadedFileInterface
     public function moveTo(string $targetPath): void
     {
         $this->validateTargetPath($targetPath);
+        $this->assertAvailable();
 
-        if ($this->moved) {
-            throw UploadedFileException::alreadyMoved();
-        }
-
-        if ($this->error !== UPLOAD_ERR_OK) {
-            throw UploadedFileException::uploadFailed($this->error);
-        }
-
+        // is_uploaded_file() only returns true for a file the SAPI registered during a rfc1867 POST, which no test
+        // process can arrange, so this branch and moveUploadedFile() stay outside the coverage report.
+        // @codeCoverageIgnoreStart
         if ($this->sourcePath !== null && is_uploaded_file($this->sourcePath)) {
-            $this->moveUploadedFile($targetPath);
+            $this->moveUploadedFile($this->sourcePath, $targetPath);
 
             return;
         }
+        // @codeCoverageIgnoreEnd
 
-        if ($this->sourcePath !== null && is_file($this->sourcePath) && @rename($this->sourcePath, $targetPath)) {
-            $this->finishMove();
-
-            return;
-        }
-
-        $this->copyStreamTo($targetPath);
-
-        if ($this->sourcePath !== null && is_file($this->sourcePath) && !@unlink($this->sourcePath)) {
-            @unlink($targetPath);
-
-            throw UploadedFileException::unableToRemoveSource($this->sourcePath);
+        if (!$this->renameSourceTo($targetPath)) {
+            $this->copyStreamTo($targetPath);
+            $this->removeSource($targetPath);
         }
 
         $this->finishMove();
@@ -136,6 +114,20 @@ final class UploadedFile implements UploadedFileInterface
     }
 
     /**
+     * @throws UploadedFileException
+     */
+    private function assertAvailable(): void
+    {
+        if ($this->moved) {
+            throw UploadedFileException::alreadyMoved();
+        }
+
+        if ($this->error !== UPLOAD_ERR_OK) {
+            throw UploadedFileException::uploadFailed($this->error);
+        }
+    }
+
+    /**
      * @throws InvalidUploadedFileException
      */
     private function validateTargetPath(string $targetPath): void
@@ -151,14 +143,36 @@ final class UploadedFile implements UploadedFileInterface
 
     /**
      * @throws UploadedFileException
+     *
+     * @codeCoverageIgnore Only reachable for a file the SAPI registered as an upload.
      */
-    private function moveUploadedFile(string $targetPath): void
+    private function moveUploadedFile(string $sourcePath, string $targetPath): void
     {
-        if (!move_uploaded_file($this->sourcePath, $targetPath)) {
+        if (!move_uploaded_file($sourcePath, $targetPath)) {
             throw UploadedFileException::unableToMove($targetPath);
         }
 
         $this->finishMove();
+    }
+
+    private function renameSourceTo(string $targetPath): bool
+    {
+        // @mago-expect lint:no-error-control-operator -- a rename that fails falls through to the stream copy
+        return $this->sourcePath !== null && is_file($this->sourcePath) && @rename($this->sourcePath, $targetPath);
+    }
+
+    /**
+     * @throws UploadedFileException
+     */
+    private function removeSource(string $targetPath): void
+    {
+        // @mago-expect lint:no-error-control-operator -- the failure is reported as unableToRemoveSource
+        if ($this->sourcePath !== null && is_file($this->sourcePath) && !@unlink($this->sourcePath)) {
+            // @mago-expect lint:no-error-control-operator -- best-effort cleanup of an already failed move
+            @unlink($targetPath);
+
+            throw UploadedFileException::unableToRemoveSource($this->sourcePath);
+        }
     }
 
     /**
@@ -172,7 +186,8 @@ final class UploadedFile implements UploadedFileInterface
             $stream->rewind();
         }
 
-        $target = @fopen($targetPath, 'wb');
+        // @mago-expect lint:no-error-control-operator -- the false return is reported as unableToOpenTarget
+        $target = @fopen($targetPath, mode: 'wb');
 
         if ($target === false) {
             throw UploadedFileException::unableToOpenTarget($targetPath);
@@ -194,15 +209,23 @@ final class UploadedFile implements UploadedFileInterface
             }
         } catch (Throwable $exception) {
             fclose($target);
+
+            // @mago-expect lint:no-error-control-operator -- best-effort cleanup while unwinding
             @unlink($targetPath);
 
             throw UploadedFileException::fromThrowable($exception);
         }
 
         if (!fclose($target)) {
+            // Closing a plain file the process just wrote does not fail: PHP writes through rather than buffering, so
+            // a full device already failed the write above. Kept for the report it would give.
+            // @codeCoverageIgnoreStart
+            // @mago-expect lint:no-error-control-operator -- best-effort cleanup of a target that will not close
             @unlink($targetPath);
 
             throw UploadedFileException::unableToCloseTarget($targetPath);
+
+            // @codeCoverageIgnoreEnd
         }
     }
 
@@ -217,6 +240,7 @@ final class UploadedFile implements UploadedFileInterface
         $offset = 0;
 
         while ($offset < $length) {
+            // @mago-expect lint:no-error-control-operator -- the false return is reported as unableToWrite
             $written = @fwrite($target, substr($contents, $offset));
 
             if ($written === false || $written === 0) {

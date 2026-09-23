@@ -162,6 +162,30 @@ final class UriTest extends TestCase
     }
 
     #[Test]
+    public function it_refuses_a_scheme_that_ends_in_a_newline(): void
+    {
+        $this->expectException(InvalidUriException::class);
+
+        new Uri()->withScheme("http\n");
+    }
+
+    #[Test]
+    public function it_refuses_a_host_that_ends_in_a_newline(): void
+    {
+        $this->expectException(InvalidUriException::class);
+
+        new Uri()->withHost("example.com\n");
+    }
+
+    #[Test]
+    public function it_refuses_an_ipvfuture_literal_that_ends_in_a_newline(): void
+    {
+        $this->expectException(InvalidUriException::class);
+
+        new Uri()->withHost("[v1.fe\n]");
+    }
+
+    #[Test]
     public function it_refuses_a_port_outside_the_valid_range(): void
     {
         try {

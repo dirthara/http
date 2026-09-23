@@ -35,11 +35,11 @@ final class Stream implements StreamInterface
         $this->resource = $resource;
 
         $metadata = stream_get_meta_data($resource);
-        $mode = $metadata['mode'] ?? '';
+        $mode = $metadata['mode'];
 
         $this->readable = $this->determineReadable($mode);
         $this->writable = $this->determineWritable($mode);
-        $this->seekable = (bool) ($metadata['seekable'] ?? false);
+        $this->seekable = $metadata['seekable'];
     }
 
     public function __toString(): string
@@ -95,7 +95,7 @@ final class Stream implements StreamInterface
             return null;
         }
 
-        return isset($statistics['size']) ? (int) $statistics['size'] : null;
+        return $statistics['size'];
     }
 
     /**
@@ -227,11 +227,7 @@ final class Stream implements StreamInterface
 
         $contents = stream_get_contents($resource);
 
-        if ($contents === false) {
-            throw InvalidStreamException::notReadable();
-        }
-
-        return $contents;
+        return $contents === false ? throw InvalidStreamException::notReadable() : $contents;
     }
 
     /**
@@ -249,6 +245,7 @@ final class Stream implements StreamInterface
             return $metadata;
         }
 
+        // @mago-expect analysis:mixed-return-statement -- a wrapper's metadata has no single type
         return $metadata[$key] ?? null;
     }
 
@@ -281,6 +278,6 @@ final class Stream implements StreamInterface
             return false;
         }
 
-        return in_array($mode[0], ['w', 'a', 'x', 'c'], true) || str_contains($mode, '+');
+        return in_array($mode[0], ['w', 'a', 'x', 'c'], strict: true) || str_contains($mode, '+');
     }
 }
