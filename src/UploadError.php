@@ -4,6 +4,15 @@ declare(strict_types=1);
 
 namespace Dirthara\Http;
 
+use const UPLOAD_ERR_OK;
+use const UPLOAD_ERR_NO_FILE;
+use const UPLOAD_ERR_PARTIAL;
+use const UPLOAD_ERR_INI_SIZE;
+use const UPLOAD_ERR_EXTENSION;
+use const UPLOAD_ERR_FORM_SIZE;
+use const UPLOAD_ERR_CANT_WRITE;
+use const UPLOAD_ERR_NO_TMP_DIR;
+
 /**
  * The error codes PHP reports for a file upload, one case per UPLOAD_ERR_* constant.
  */

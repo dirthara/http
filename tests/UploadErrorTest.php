@@ -8,6 +8,15 @@ use Dirthara\Http\UploadError;
 use PHPUnit\Framework\TestCase;
 use PHPUnit\Framework\Attributes\Test;
 
+use const UPLOAD_ERR_OK;
+use const UPLOAD_ERR_NO_FILE;
+use const UPLOAD_ERR_PARTIAL;
+use const UPLOAD_ERR_INI_SIZE;
+use const UPLOAD_ERR_EXTENSION;
+use const UPLOAD_ERR_FORM_SIZE;
+use const UPLOAD_ERR_CANT_WRITE;
+use const UPLOAD_ERR_NO_TMP_DIR;
+
 final class UploadErrorTest extends TestCase
 {
     #[Test]

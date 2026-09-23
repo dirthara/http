@@ -17,6 +17,9 @@ use function strtolower;
 use function str_ends_with;
 use function str_starts_with;
 
+use const FILTER_FLAG_IPV6;
+use const FILTER_VALIDATE_IP;
+
 /**
  * The authority of a URI: its user info, host, and port, each validated and normalized.
  *

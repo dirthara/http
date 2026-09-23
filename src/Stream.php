@@ -22,6 +22,8 @@ use function is_resource;
 use function get_resource_type;
 use function stream_get_contents;
 
+use const SEEK_SET;
+
 final class Stream implements StreamInterface, Stringable
 {
     private const int MAX_READ_LENGTH = 1024 * 1024;

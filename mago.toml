@@ -19,9 +19,17 @@ enabled = true
 level = "error"
 allow-disabling = false
 
-# CS-1 §5: root-level functions and classes are imported with a use statement, never called unqualified or written
-# fully qualified.
+# CS-1 §5: root-level functions, classes, and constants are imported with a use statement, never used unqualified or
+# written fully qualified.
 [linter.rules.ambiguous-function-call]
+enabled = true
+level = "error"
+
+[linter.rules.ambiguous-constant-access]
+enabled = true
+level = "error"
+
+[linter.rules.no-fully-qualified-global-constant]
 enabled = true
 level = "error"
 

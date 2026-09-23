@@ -32,6 +32,9 @@ use function sys_get_temp_dir;
 use function file_put_contents;
 use function stream_context_create;
 
+use const SEEK_SET;
+use const PHP_INT_MAX;
+
 final class StreamTest extends TestCase
 {
     private string $directory;

@@ -29,6 +29,10 @@ use function random_bytes;
 use function sys_get_temp_dir;
 use function file_put_contents;
 
+use const UPLOAD_ERR_OK;
+use const UPLOAD_ERR_NO_FILE;
+use const UPLOAD_ERR_INI_SIZE;
+
 final class UploadedFileTest extends TestCase
 {
     private string $directory;

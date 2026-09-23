@@ -9,6 +9,8 @@ use RuntimeException;
 
 use function sprintf;
 
+use const SEEK_SET;
+
 final class StreamException extends RuntimeException implements HttpException
 {
     use HasExceptionContext;

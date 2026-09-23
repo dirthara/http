@@ -15,6 +15,9 @@ use Dirthara\Http\Exception\InvalidUploadedFileException;
 use function fopen;
 use function fclose;
 
+use const UPLOAD_ERR_OK;
+use const UPLOAD_ERR_NO_FILE;
+
 final class UploadedFileFactoryTest extends TestCase
 {
     #[Test]

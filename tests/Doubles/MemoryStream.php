@@ -12,6 +12,8 @@ use Psr\Http\Message\StreamInterface;
 use function strlen;
 use function substr;
 
+use const SEEK_SET;
+
 /**
  * An in-memory stream with knobs for the failures UploadedFile has to survive.
  */
