@@ -77,7 +77,7 @@ final class ServerRequest implements ServerRequestInterface
     /**
      * @param array<array-key, mixed> $cookies
      */
-    public function withCookieParams(array $cookies): self
+    public function withCookieParams(array $cookies): ServerRequestInterface
     {
         return clone($this, [
             'cookieParams' => $cookies,
@@ -95,7 +95,7 @@ final class ServerRequest implements ServerRequestInterface
     /**
      * @param array<array-key, mixed> $query
      */
-    public function withQueryParams(array $query): self
+    public function withQueryParams(array $query): ServerRequestInterface
     {
         return clone($this, [
             'queryParams' => $query,
@@ -115,7 +115,7 @@ final class ServerRequest implements ServerRequestInterface
      *
      * @throws InvalidRequestException
      */
-    public function withUploadedFiles(array $uploadedFiles): self
+    public function withUploadedFiles(array $uploadedFiles): ServerRequestInterface
     {
         $this->validateUploadedFiles($uploadedFiles);
 
@@ -137,7 +137,7 @@ final class ServerRequest implements ServerRequestInterface
      *
      * @throws InvalidRequestException
      */
-    public function withParsedBody($data): self
+    public function withParsedBody($data): ServerRequestInterface
     {
         return clone($this, [
             'parsedBody' => $this->validateParsedBody($data),
@@ -157,7 +157,7 @@ final class ServerRequest implements ServerRequestInterface
         return array_key_exists($name, $this->attributes) ? $this->attributes[$name] : $default;
     }
 
-    public function withAttribute(string $name, $value): self
+    public function withAttribute(string $name, $value): ServerRequestInterface
     {
         $attributes = $this->attributes;
         $attributes[$name] = $value;
@@ -167,7 +167,7 @@ final class ServerRequest implements ServerRequestInterface
         ]);
     }
 
-    public function withoutAttribute(string $name): self
+    public function withoutAttribute(string $name): ServerRequestInterface
     {
         if (!array_key_exists($name, $this->attributes)) {
             return $this;

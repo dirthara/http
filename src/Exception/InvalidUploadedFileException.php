@@ -43,6 +43,11 @@ final class InvalidUploadedFileException extends InvalidArgumentException implem
         return new self(message: 'A successfully uploaded file must have a stream.');
     }
 
+    public static function streamNotReadable(): self
+    {
+        return new self(message: 'The stream of an uploaded file must be readable.');
+    }
+
     public static function emptyTargetPath(): self
     {
         return new self(message: 'Target path cannot be empty.');

@@ -28,6 +28,18 @@ final class InvalidStreamException extends InvalidArgumentException implements H
         ]);
     }
 
+    public static function invalidFilename(string $filename): self
+    {
+        return new self(message: 'A stream filename cannot be empty or contain null bytes.', context: [
+            'filename' => $filename,
+        ]);
+    }
+
+    public static function invalidMode(string $mode): self
+    {
+        return new self(message: sprintf('The stream mode "%s" is invalid.', $mode), context: ['mode' => $mode]);
+    }
+
     public static function invalidReadLength(int $length): self
     {
         return new self(sprintf('Stream read length cannot be negative, "%d" given.', $length), context: [

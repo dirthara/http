@@ -155,7 +155,7 @@ final class Uri implements UriInterface
     /**
      * @throws InvalidUriException
      */
-    public function withScheme(string $scheme): self
+    public function withScheme(string $scheme): UriInterface
     {
         $scheme = $this->normalizeScheme($scheme);
 
@@ -168,7 +168,7 @@ final class Uri implements UriInterface
         ]);
     }
 
-    public function withUserInfo(string $user, #[SensitiveParameter] ?string $password = null): self
+    public function withUserInfo(string $user, #[SensitiveParameter] ?string $password = null): UriInterface
     {
         $userInfo = '';
 
@@ -192,7 +192,7 @@ final class Uri implements UriInterface
     /**
      * @throws InvalidUriException
      */
-    public function withHost(string $host): self
+    public function withHost(string $host): UriInterface
     {
         $host = $this->normalizeHost($host);
 
@@ -208,7 +208,7 @@ final class Uri implements UriInterface
     /**
      * @throws InvalidUriException
      */
-    public function withPort(?int $port): self
+    public function withPort(?int $port): UriInterface
     {
         if ($port !== null) {
             $port = $this->validatePort($port);
@@ -223,7 +223,7 @@ final class Uri implements UriInterface
         ]);
     }
 
-    public function withPath(string $path): self
+    public function withPath(string $path): UriInterface
     {
         $path = $this->encodePath($path);
 
@@ -236,7 +236,7 @@ final class Uri implements UriInterface
         ]);
     }
 
-    public function withQuery(string $query): self
+    public function withQuery(string $query): UriInterface
     {
         $query = $this->encodeQueryOrFragment($query);
 
@@ -249,7 +249,7 @@ final class Uri implements UriInterface
         ]);
     }
 
-    public function withFragment(string $fragment): self
+    public function withFragment(string $fragment): UriInterface
     {
         $fragment = $this->encodeQueryOrFragment($fragment);
 

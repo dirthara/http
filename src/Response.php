@@ -50,7 +50,7 @@ final class Response implements ResponseInterface
     /**
      * @throws InvalidResponseException
      */
-    public function withStatus(int|StatusCode $code, string $reasonPhrase = ''): self
+    public function withStatus(int|StatusCode $code, string $reasonPhrase = ''): ResponseInterface
     {
         $code = $this->validateStatusCode($code);
         $reasonPhrase = $this->resolveReasonPhrase($code, $reasonPhrase);
