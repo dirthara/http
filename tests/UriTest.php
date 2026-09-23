@@ -492,9 +492,22 @@ final class UriTest extends TestCase
     }
 
     #[Test]
-    public function it_keeps_the_empty_authority_of_a_file_uri(): void
+    public function it_keeps_an_empty_authority_it_was_given(): void
     {
         self::assertSame('file:///etc/hosts', (string) new Uri('file:///etc/hosts'));
-        self::assertSame('file:///etc/hosts', (string) new Uri('file:')->withPath('etc/hosts'));
+        self::assertSame('///path', (string) new Uri('///path'));
+    }
+
+    #[Test]
+    public function it_keeps_a_rootless_path_rootless_when_there_was_no_authority(): void
+    {
+        self::assertSame('file:etc/hosts', (string) new Uri('file:')->withPath('etc/hosts'));
+        self::assertSame('file:etc/hosts', (string) new Uri('file:etc/hosts'));
+    }
+
+    #[Test]
+    public function it_drops_the_authority_when_the_host_is_removed_from_a_uri_that_had_one(): void
+    {
+        self::assertSame('http:/path', (string) new Uri('http://example.com/path')->withHost(''));
     }
 }

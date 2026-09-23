@@ -60,9 +60,10 @@ is, so encoding never happens twice. A `%` that does not start a triplet is enco
 
 ### Building a string
 
-When there is an authority, a path without a leading slash gets one. A `file` URI keeps its empty authority, so
-`file:///etc/hosts` round-trips as it was given. When there is no authority, a path starting with `//` is
-reduced to a single slash, so it cannot be mistaken for an authority.
+When there is an authority, a path without a leading slash gets one. A parsed string that had an empty authority keeps
+it, so `file:///etc/hosts` round-trips as it was given, while a URI without one keeps a rootless path rootless:
+`new Uri('file:')->withPath('etc/hosts')` gives `file:etc/hosts`. When there is no authority, a path starting with `//`
+is reduced to a single slash, so it cannot be mistaken for an authority.
 
 ## Validation
 

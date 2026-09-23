@@ -37,6 +37,12 @@ final readonly class Uri implements UriInterface, Stringable
 
     private Authority $authority;
 
+    /**
+     * Whether the parsed string had an authority with nothing in it, as file:///etc/hosts does, which has to survive
+     * being turned back into a string.
+     */
+    private bool $hasEmptyAuthority;
+
     private string $path;
 
     private string $query;
@@ -57,6 +63,7 @@ final readonly class Uri implements UriInterface, Stringable
         $this->authority = $authority === ''
             ? Authority::empty()
             : Authority::fromString(substr($authority, offset: 2), $uri);
+        $this->hasEmptyAuthority = $authority !== '' && $this->authority->host === '';
         $this->path = $this->encodePath($path);
         $this->query = $this->encodeQueryOrFragment(substr($query, offset: 1));
         $this->fragment = $this->encodeQueryOrFragment(substr($fragment, offset: 1));
@@ -72,8 +79,7 @@ final readonly class Uri implements UriInterface, Stringable
 
         $authority = $this->getAuthority();
 
-        // A file URI keeps its empty authority, so file:///etc/hosts does not become file:/etc/hosts.
-        $hasAuthority = $authority !== '' || $this->scheme === 'file';
+        $hasAuthority = $authority !== '' || $this->hasEmptyAuthority;
 
         if ($hasAuthority) {
             $uri .= '//' . $authority;
