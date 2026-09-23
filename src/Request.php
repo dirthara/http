@@ -10,9 +10,9 @@ use Psr\Http\Message\RequestInterface;
 use Dirthara\Http\Exception\InvalidMessageException;
 use Dirthara\Http\Exception\InvalidRequestException;
 
-final class Request implements RequestInterface
+final readonly class Request implements RequestInterface
 {
-    use RequestTrait;
+    use ImplementsRequest;
 
     /**
      * @param array<array-key, string|array<array-key, string>> $headers
@@ -27,6 +27,11 @@ final class Request implements RequestInterface
         array $headers = [],
         string $protocolVersion = '1.1',
     ) {
-        $this->initializeRequest($method, $uri, $body, $headers, $protocolVersion);
+        $this->method = $this->validateMethod($method);
+        $this->uri = $this->validateUri($uri);
+        $this->requestTarget = null;
+        $this->body = $body;
+        $this->protocolVersion = $this->validateProtocolVersion($protocolVersion);
+        $this->headers = $this->requestHeaders($headers, $uri);
     }
 }

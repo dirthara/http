@@ -5,13 +5,17 @@ declare(strict_types=1);
 namespace Dirthara\Http\Tests\Doubles;
 
 use Throwable;
+use Stringable;
 use RuntimeException;
 use Psr\Http\Message\StreamInterface;
+
+use function strlen;
+use function substr;
 
 /**
  * An in-memory stream with knobs for the failures UploadedFile has to survive.
  */
-final class MemoryStream implements StreamInterface
+final class MemoryStream implements StreamInterface, Stringable
 {
     public bool $closed = false;
 

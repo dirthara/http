@@ -7,6 +7,8 @@ namespace Dirthara\Http\Exception;
 use Throwable;
 use InvalidArgumentException;
 
+use function sprintf;
+
 final class InvalidResponseException extends InvalidArgumentException implements HttpException
 {
     use HasExceptionContext;

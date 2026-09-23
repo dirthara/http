@@ -9,7 +9,7 @@ use Psr\Http\Message\UriInterface;
 use Psr\Http\Message\UriFactoryInterface;
 use Dirthara\Http\Exception\InvalidUriException;
 
-final class UriFactory implements UriFactoryInterface
+final readonly class UriFactory implements UriFactoryInterface
 {
     /**
      * @throws InvalidUriException

@@ -11,6 +11,9 @@ use Dirthara\Http\Factory\StreamFactory;
 use Dirthara\Http\Factory\UploadedFileFactory;
 use Dirthara\Http\Exception\InvalidUploadedFileException;
 
+use function fopen;
+use function fclose;
+
 final class UploadedFileFactoryTest extends TestCase
 {
     #[Test]

@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace Dirthara\Http\Exception;
 
+use function addcslashes;
+use function array_merge;
+
 trait HasExceptionContext
 {
     /**

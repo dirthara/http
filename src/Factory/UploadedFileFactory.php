@@ -10,7 +10,7 @@ use Psr\Http\Message\UploadedFileInterface;
 use Psr\Http\Message\UploadedFileFactoryInterface;
 use Dirthara\Http\Exception\InvalidUploadedFileException;
 
-final class UploadedFileFactory implements UploadedFileFactoryInterface
+final readonly class UploadedFileFactory implements UploadedFileFactoryInterface
 {
     /**
      * @throws InvalidUploadedFileException

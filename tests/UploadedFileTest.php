@@ -13,6 +13,21 @@ use Dirthara\Http\Tests\Doubles\MemoryStream;
 use Dirthara\Http\Exception\UploadedFileException;
 use Dirthara\Http\Exception\InvalidUploadedFileException;
 
+use function chmod;
+use function mkdir;
+use function rmdir;
+use function is_dir;
+use function unlink;
+use function bin2hex;
+use function scandir;
+use function sprintf;
+use function array_diff;
+use function str_repeat;
+use function is_writable;
+use function random_bytes;
+use function sys_get_temp_dir;
+use function file_put_contents;
+
 final class UploadedFileTest extends TestCase
 {
     private string $directory;

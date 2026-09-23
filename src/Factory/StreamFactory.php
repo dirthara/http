@@ -10,7 +10,12 @@ use Dirthara\Http\Exception\StreamException;
 use Psr\Http\Message\StreamFactoryInterface;
 use Dirthara\Http\Exception\InvalidStreamException;
 
-final class StreamFactory implements StreamFactoryInterface
+use function fopen;
+use function is_dir;
+use function preg_match;
+use function str_contains;
+
+final readonly class StreamFactory implements StreamFactoryInterface
 {
     private const string MODE_PATTERN = '/^[rwaxc][bte]*\+?[bte]*$/D';
 

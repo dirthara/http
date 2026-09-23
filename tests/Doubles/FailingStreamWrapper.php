@@ -6,6 +6,13 @@ namespace Dirthara\Http\Tests\Doubles;
 
 use RuntimeException;
 
+use function fopen;
+use function in_array;
+use function is_resource;
+use function stream_get_wrappers;
+use function stream_wrapper_register;
+use function stream_wrapper_unregister;
+
 /**
  * A stream wrapper whose writes fail without raising a PHP notice, which no
  * real stream does: a full device reports the failure through the error

@@ -4,11 +4,27 @@ declare(strict_types=1);
 
 namespace Dirthara\Http;
 
+use Stringable;
 use SensitiveParameter;
 use Psr\Http\Message\UriInterface;
 use Dirthara\Http\Exception\InvalidUriException;
 
-final class Uri implements UriInterface
+use function ord;
+use function ltrim;
+use function strlen;
+use function strpos;
+use function substr;
+use function sprintf;
+use function strrpos;
+use function filter_var;
+use function preg_match;
+use function strtolower;
+use function ctype_xdigit;
+use function str_contains;
+use function str_ends_with;
+use function str_starts_with;
+
+final readonly class Uri implements UriInterface, Stringable
 {
     /**
      * @var array<string, int>
@@ -32,52 +48,81 @@ final class Uri implements UriInterface
 
     private const string IP_FUTURE_PATTERN = '/^v[a-f0-9]+\.[a-z0-9._~!$&\'()*+,;=:-]+$/iD';
 
-    private string $scheme = '';
+    private string $scheme;
 
-    private string $userInfo = '';
+    private string $userInfo;
 
-    private string $host = '';
+    private string $host;
 
-    private ?int $port = null;
+    private ?int $port;
 
-    private string $path = '';
+    private string $path;
 
-    private string $query = '';
+    private string $query;
 
-    private string $fragment = '';
+    private string $fragment;
 
     /**
      * @throws InvalidUriException
      */
     public function __construct(string $uri = '')
     {
-        if ($uri === '') {
-            return;
-        }
-
         // Every part is optional, so the pattern matches any string. PHP leaves out unmatched groups at the end.
         $parts = [];
         preg_match(self::URI_PATTERN, $uri, $parts);
 
         [, $scheme, $authority, $path, $query, $fragment] = $parts + ['', '', '', '', '', ''];
+        [$userInfo, $host, $port] = $authority === ''
+            ? ['', '', null]
+            : $this->parseAuthority($uri, substr($authority, offset: 2));
 
-        if ($scheme !== '') {
-            $this->scheme = $this->normalizeScheme($scheme);
-        }
-
-        if ($authority !== '') {
-            $this->parseAuthority($uri, substr($authority, offset: 2));
-        }
-
+        $this->scheme = $this->normalizeScheme($scheme);
+        $this->userInfo = $userInfo;
+        $this->host = $host;
+        $this->port = $port;
         $this->path = $this->encodePath($path);
+        $this->query = $this->encodeQueryOrFragment(substr($query, offset: 1));
+        $this->fragment = $this->encodeQueryOrFragment(substr($fragment, offset: 1));
+    }
 
-        if ($query !== '') {
-            $this->query = $this->encodeQueryOrFragment(substr($query, offset: 1));
+    public function __toString(): string
+    {
+        $uri = '';
+
+        if ($this->scheme !== '') {
+            $uri .= $this->scheme . ':';
         }
 
-        if ($fragment !== '') {
-            $this->fragment = $this->encodeQueryOrFragment(substr($fragment, offset: 1));
+        $authority = $this->getAuthority();
+
+        // A file URI keeps its empty authority, so file:///etc/hosts does not become file:/etc/hosts.
+        $hasAuthority = $authority !== '' || $this->scheme === 'file';
+
+        if ($hasAuthority) {
+            $uri .= '//' . $authority;
         }
+
+        $path = $this->path;
+
+        if ($hasAuthority && $path !== '' && $path[0] !== '/') {
+            $path = '/' . $path;
+        }
+
+        if (!$hasAuthority && str_starts_with($path, '//')) {
+            $path = '/' . ltrim($path, characters: '/');
+        }
+
+        $uri .= $path;
+
+        if ($this->query !== '') {
+            $uri .= '?' . $this->query;
+        }
+
+        if ($this->fragment !== '') {
+            $uri .= '#' . $this->fragment;
+        }
+
+        return $uri;
     }
 
     public function getScheme(): string
@@ -248,55 +293,18 @@ final class Uri implements UriInterface
         ]);
     }
 
-    public function __toString(): string
-    {
-        $uri = '';
-
-        if ($this->scheme !== '') {
-            $uri .= $this->scheme . ':';
-        }
-
-        $authority = $this->getAuthority();
-
-        // A file URI keeps its empty authority, so file:///etc/hosts does not become file:/etc/hosts.
-        $hasAuthority = $authority !== '' || $this->scheme === 'file';
-
-        if ($hasAuthority) {
-            $uri .= '//' . $authority;
-        }
-
-        $path = $this->path;
-
-        if ($hasAuthority && $path !== '' && $path[0] !== '/') {
-            $path = '/' . $path;
-        }
-
-        if (!$hasAuthority && str_starts_with($path, '//')) {
-            $path = '/' . ltrim($path, characters: '/');
-        }
-
-        $uri .= $path;
-
-        if ($this->query !== '') {
-            $uri .= '?' . $this->query;
-        }
-
-        if ($this->fragment !== '') {
-            $uri .= '#' . $this->fragment;
-        }
-
-        return $uri;
-    }
-
     /**
      * @throws InvalidUriException
+     *
+     * @return array{string, string, int|null}
      */
-    private function parseAuthority(string $uri, string $authority): void
+    private function parseAuthority(string $uri, string $authority): array
     {
+        $userInfo = '';
         $at = strrpos($authority, needle: '@');
 
         if ($at !== false) {
-            $this->userInfo = $this->parseUserInfo(substr($authority, offset: 0, length: $at));
+            $userInfo = $this->parseUserInfo(substr($authority, offset: 0, length: $at));
             $authority = substr($authority, $at + 1);
         }
 
@@ -308,18 +316,25 @@ final class Uri implements UriInterface
 
         [, $host, $port] = $hostAndPort + ['', '', ''];
 
-        $this->host = $this->normalizeHost($host);
+        return [$userInfo, $this->normalizeHost($host), $this->parsePort($uri, $port)];
+    }
 
-        // The group keeps its colon: ':' alone is an empty port, which RFC 3986 allows and means none.
+    /**
+     * The port group keeps its colon: ':' alone is an empty port, which RFC 3986 allows and means none.
+     *
+     * @throws InvalidUriException
+     */
+    private function parsePort(string $uri, string $port): ?int
+    {
         if (strlen($port) <= 1) {
-            return;
+            return null;
         }
 
         if (strlen($port) > 6) {
             throw InvalidUriException::forInvalidUri($uri);
         }
 
-        $this->port = $this->validatePort((int) substr($port, offset: 1));
+        return $this->validatePort((int) substr($port, offset: 1));
     }
 
     private function parseUserInfo(#[SensitiveParameter] string $userInfo): string
@@ -372,7 +387,7 @@ final class Uri implements UriInterface
     /**
      * @throws InvalidUriException
      */
-    private static function normalizeIpLiteral(string $host): string
+    private function normalizeIpLiteral(string $host): string
     {
         if (!str_ends_with($host, ']')) {
             throw InvalidUriException::invalidIpLiteralHost($host);
@@ -432,17 +447,17 @@ final class Uri implements UriInterface
         $encoded = '';
         $length = strlen($value);
 
-        for ($index = 0; $index < $length; $index++) {
-            $character = $value[$index];
+        for ($i = 0; $i < $length; $i++) {
+            $character = $value[$i];
 
             if (
                 $character === '%'
-                && ($index + 2) < $length
-                && ctype_xdigit($value[$index + 1])
-                && ctype_xdigit($value[$index + 2])
+                && ($i + 2) < $length
+                && ctype_xdigit($value[$i + 1])
+                && ctype_xdigit($value[$i + 2])
             ) {
-                $encoded .= substr($value, $index, length: 3);
-                $index += 2;
+                $encoded .= substr($value, $i, length: 3);
+                $i += 2;
 
                 continue;
             }

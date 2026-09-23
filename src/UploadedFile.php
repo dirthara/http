@@ -11,6 +11,19 @@ use Psr\Http\Message\UploadedFileInterface;
 use Dirthara\Http\Exception\UploadedFileException;
 use Dirthara\Http\Exception\InvalidUploadedFileException;
 
+use function fopen;
+use function fclose;
+use function fwrite;
+use function rename;
+use function strlen;
+use function substr;
+use function unlink;
+use function is_file;
+use function in_array;
+use function str_contains;
+use function is_uploaded_file;
+use function move_uploaded_file;
+
 final class UploadedFile implements UploadedFileInterface
 {
     /**

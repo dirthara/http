@@ -9,9 +9,11 @@ use Psr\Http\Message\ResponseInterface;
 use Dirthara\Http\Exception\InvalidMessageException;
 use Dirthara\Http\Exception\InvalidResponseException;
 
-final class Response implements ResponseInterface
+use function preg_match;
+
+final readonly class Response implements ResponseInterface
 {
-    use MessageTrait;
+    use ImplementsMessage;
 
     private const string INVALID_REASON_PHRASE_PATTERN = '/[\x00-\x08\x0A-\x1F\x7F]/';
 
@@ -37,7 +39,7 @@ final class Response implements ResponseInterface
         $this->body = $body;
         $this->protocolVersion = $this->validateProtocolVersion($protocolVersion);
 
-        $this->setHeaders($headers);
+        $this->headers = Headers::fromArray($headers);
     }
 
     public function getStatusCode(): int

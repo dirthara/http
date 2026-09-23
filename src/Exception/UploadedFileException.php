@@ -7,6 +7,9 @@ namespace Dirthara\Http\Exception;
 use Throwable;
 use RuntimeException;
 
+use function sprintf;
+use function is_string;
+
 final class UploadedFileException extends RuntimeException implements HttpException
 {
     use HasExceptionContext;

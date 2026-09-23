@@ -7,6 +7,8 @@ namespace Dirthara\Http\Exception;
 use Throwable;
 use RuntimeException;
 
+use function sprintf;
+
 final class StreamException extends RuntimeException implements HttpException
 {
     use HasExceptionContext;

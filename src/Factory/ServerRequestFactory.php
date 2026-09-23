@@ -22,7 +22,7 @@ final readonly class ServerRequestFactory implements ServerRequestFactoryInterfa
     ) {}
 
     /**
-     * @param UriInterface|string $uri
+     * @param UriInterface|string     $uri
      * @param array<array-key, mixed> $serverParams
      *
      * @throws InvalidMessageException

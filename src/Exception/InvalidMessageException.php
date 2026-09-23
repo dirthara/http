@@ -7,6 +7,9 @@ namespace Dirthara\Http\Exception;
 use Throwable;
 use InvalidArgumentException;
 
+use function sprintf;
+use function get_debug_type;
+
 final class InvalidMessageException extends InvalidArgumentException implements HttpException
 {
     use HasExceptionContext;

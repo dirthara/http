@@ -12,6 +12,26 @@ use Dirthara\Http\Exception\StreamException;
 use Dirthara\Http\Exception\InvalidStreamException;
 use Dirthara\Http\Tests\Doubles\FailingStreamWrapper;
 
+use function fopen;
+use function mkdir;
+use function rmdir;
+use function fclose;
+use function strlen;
+use function unlink;
+use function bin2hex;
+use function opendir;
+use function scandir;
+use function sprintf;
+use function proc_open;
+use function array_diff;
+use function proc_close;
+use function str_repeat;
+use function is_resource;
+use function random_bytes;
+use function sys_get_temp_dir;
+use function file_put_contents;
+use function stream_context_create;
+
 final class StreamTest extends TestCase
 {
     private string $directory;

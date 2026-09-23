@@ -11,38 +11,42 @@ use Psr\Http\Message\ServerRequestInterface;
 use Dirthara\Http\Exception\InvalidMessageException;
 use Dirthara\Http\Exception\InvalidRequestException;
 
-final class ServerRequest implements ServerRequestInterface
+use function is_array;
+use function is_object;
+use function array_key_exists;
+
+final readonly class ServerRequest implements ServerRequestInterface
 {
-    use RequestTrait;
+    use ImplementsRequest;
 
     /**
      * @var array<array-key, mixed>
      */
-    private array $cookieParams = [];
+    private array $cookieParams;
 
     /**
      * @var array<array-key, mixed>
      */
-    private array $queryParams = [];
+    private array $queryParams;
 
     /**
      * @var array<array-key, mixed>
      */
-    private array $uploadedFiles = [];
+    private array $uploadedFiles;
 
     /**
      * @var null|array<array-key, mixed>|object
      */
-    private array|object|null $parsedBody = null;
+    private array|object|null $parsedBody;
 
     /**
      * @var array<array-key, mixed>
      */
-    private array $attributes = [];
+    private array $attributes;
 
     /**
      * @param array<array-key, string|array<array-key, string>> $headers
-     * @param array<array-key, mixed> $serverParams
+     * @param array<array-key, mixed>                             $serverParams
      *
      * @throws InvalidMessageException
      * @throws InvalidRequestException
@@ -53,9 +57,20 @@ final class ServerRequest implements ServerRequestInterface
         StreamInterface $body,
         array $headers = [],
         string $protocolVersion = '1.1',
-        private readonly array $serverParams = [],
+        private array $serverParams = [],
     ) {
-        $this->initializeRequest($method, $uri, $body, $headers, $protocolVersion);
+        $this->method = $this->validateMethod($method);
+        $this->uri = $this->validateUri($uri);
+        $this->requestTarget = null;
+        $this->body = $body;
+        $this->protocolVersion = $this->validateProtocolVersion($protocolVersion);
+        $this->headers = $this->requestHeaders($headers, $uri);
+
+        $this->cookieParams = [];
+        $this->queryParams = [];
+        $this->uploadedFiles = [];
+        $this->parsedBody = null;
+        $this->attributes = [];
     }
 
     /**
@@ -182,9 +197,9 @@ final class ServerRequest implements ServerRequestInterface
     }
 
     /**
-     * @return null|array<array-key, mixed>|object
-     *
      * @throws InvalidRequestException
+     *
+     * @return null|array<array-key, mixed>|object
      */
     private function validateParsedBody(mixed $data): array|object|null
     {

@@ -5,27 +5,29 @@ declare(strict_types=1);
 namespace Dirthara\Http;
 
 use Psr\Http\Message\UriInterface;
-use Psr\Http\Message\StreamInterface;
 use Psr\Http\Message\RequestInterface;
 use Dirthara\Http\Exception\InvalidMessageException;
 use Dirthara\Http\Exception\InvalidRequestException;
+
+use function ltrim;
+use function preg_match;
 
 /**
  * @internal
  *
  * @require-implements RequestInterface
  */
-trait RequestTrait
+trait ImplementsRequest
 {
-    use MessageTrait;
+    use ImplementsMessage;
 
     private const string INVALID_REQUEST_TARGET_PATTERN = '/[\x00-\x20\x7F]/';
 
-    private string $method;
+    private readonly string $method;
 
-    private UriInterface $uri;
+    private readonly UriInterface $uri;
 
-    private ?string $requestTarget = null;
+    private readonly ?string $requestTarget;
 
     public function getRequestTarget(): string
     {
@@ -81,43 +83,39 @@ trait RequestTrait
     // @mago-expect lint:no-boolean-flag-parameter -- PSR-7 defines this signature
     public function withUri(UriInterface $uri, bool $preserveHost = false): RequestInterface
     {
-        $this->validateRequestTarget($this->deriveRequestTarget($uri));
+        $uri = $this->validateUri($uri);
+        $headers = $this->headers;
 
-        $clone = clone($this, [
-            'uri' => $uri,
-        ]);
-
-        if (!$preserveHost || $clone->getHeaderLine('Host') === '') {
-            $clone->setHostFromUri($uri);
+        if (!$preserveHost || $headers->line('Host') === '') {
+            $headers = $this->withHostFrom($headers, $uri);
         }
 
-        return $clone;
+        return clone($this, [
+            'uri' => $uri,
+            'headers' => $headers,
+        ]);
     }
 
     /**
      * @param array<array-key, string|array<array-key, string>> $headers
      *
      * @throws InvalidMessageException
+     */
+    private function requestHeaders(array $headers, UriInterface $uri): Headers
+    {
+        $given = Headers::fromArray($headers);
+
+        return $given->line('Host') === '' ? $this->withHostFrom($given, $uri) : $given;
+    }
+
+    /**
      * @throws InvalidRequestException
      */
-    private function initializeRequest(
-        string $method,
-        UriInterface $uri,
-        StreamInterface $body,
-        array $headers,
-        string $protocolVersion,
-    ): void {
-        $this->method = $this->validateMethod($method);
+    private function validateUri(UriInterface $uri): UriInterface
+    {
         $this->validateRequestTarget($this->deriveRequestTarget($uri));
-        $this->uri = $uri;
-        $this->body = $body;
-        $this->protocolVersion = $this->validateProtocolVersion($protocolVersion);
 
-        $this->setHeaders($headers);
-
-        if ($this->getHeaderLine('Host') === '') {
-            $this->setHostFromUri($uri);
-        }
+        return $uri;
     }
 
     /**
@@ -133,27 +131,21 @@ trait RequestTrait
     }
 
     /**
+     * Sets Host from a URI that has a host, first among the headers as RFC 9112 asks.
+     *
      * @throws InvalidMessageException
      */
-    private function setHostFromUri(UriInterface $uri): void
+    private function withHostFrom(Headers $headers, UriInterface $uri): Headers
     {
         $host = $uri->getHost();
 
         if ($host === '') {
-            return;
+            return $headers;
         }
 
         $port = $uri->getPort();
 
-        if ($port !== null) {
-            $host .= ':' . $port;
-        }
-
-        $name = $this->headerNames['host'] ?? 'Host';
-
-        $this->setHeader($name, $host);
-
-        $this->headers = [$name => $this->headers[$name]] + $this->headers;
+        return $headers->withFirst('Host', $port === null ? $host : $host . ':' . $port);
     }
 
     /**
@@ -161,7 +153,7 @@ trait RequestTrait
      */
     private function validateMethod(string $method): string
     {
-        if (!preg_match(self::TOKEN_PATTERN, $method)) {
+        if (!preg_match(Headers::TOKEN_PATTERN, $method)) {
             throw InvalidRequestException::invalidMethod($method);
         }
 

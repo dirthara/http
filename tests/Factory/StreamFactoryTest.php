@@ -11,6 +11,18 @@ use Dirthara\Http\Factory\StreamFactory;
 use Dirthara\Http\Exception\StreamException;
 use Dirthara\Http\Exception\InvalidStreamException;
 
+use function fopen;
+use function mkdir;
+use function rmdir;
+use function unlink;
+use function bin2hex;
+use function scandir;
+use function sprintf;
+use function array_diff;
+use function random_bytes;
+use function sys_get_temp_dir;
+use function file_put_contents;
+
 final class StreamFactoryTest extends TestCase
 {
     private string $directory;

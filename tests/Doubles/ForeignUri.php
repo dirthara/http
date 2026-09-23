@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Dirthara\Http\Tests\Doubles;
 
+use Stringable;
 use LogicException;
 use SensitiveParameter;
 use Psr\Http\Message\UriInterface;
@@ -11,13 +12,18 @@ use Psr\Http\Message\UriInterface;
 /**
  * A URI from another implementation, which hands back its path and query without validating or encoding them.
  */
-final readonly class ForeignUri implements UriInterface
+final readonly class ForeignUri implements UriInterface, Stringable
 {
     public function __construct(
         private string $path,
         private string $query = '',
         private string $host = '',
     ) {}
+
+    public function __toString(): string
+    {
+        return $this->path;
+    }
 
     public function getScheme(): string
     {
@@ -92,10 +98,5 @@ final readonly class ForeignUri implements UriInterface
     public function withFragment(string $fragment): UriInterface
     {
         throw new LogicException('Not needed by the tests.');
-    }
-
-    public function __toString(): string
-    {
-        return $this->path;
     }
 }

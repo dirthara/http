@@ -8,6 +8,10 @@ use Dirthara\Http\StatusCode;
 use PHPUnit\Framework\TestCase;
 use PHPUnit\Framework\Attributes\Test;
 
+use function strtolower;
+use function str_replace;
+use function array_filter;
+
 final class StatusCodeTest extends TestCase
 {
     #[Test]

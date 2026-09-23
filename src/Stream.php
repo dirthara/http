@@ -4,12 +4,28 @@ declare(strict_types=1);
 
 namespace Dirthara\Http;
 
+use Stringable;
 use RuntimeException;
 use Psr\Http\Message\StreamInterface;
 use Dirthara\Http\Exception\StreamException;
 use Dirthara\Http\Exception\InvalidStreamException;
 
-final class Stream implements StreamInterface
+use function min;
+use function feof;
+use function fread;
+use function fseek;
+use function fstat;
+use function ftell;
+use function fclose;
+use function fwrite;
+use function in_array;
+use function is_resource;
+use function str_contains;
+use function get_resource_type;
+use function stream_get_contents;
+use function stream_get_meta_data;
+
+final class Stream implements StreamInterface, Stringable
 {
     private const int MAX_READ_LENGTH = 1024 * 1024;
 
@@ -255,9 +271,9 @@ final class Stream implements StreamInterface
     }
 
     /**
-     * @return resource
-     *
      * @throws StreamException
+     *
+     * @return resource
      */
     private function getResource()
     {
