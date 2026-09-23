@@ -392,4 +392,109 @@ final class UriTest extends TestCase
                 ->getPath(),
         );
     }
+
+    #[Test]
+    public function it_parses_a_relative_path_whose_last_segment_looks_like_a_port(): void
+    {
+        self::assertSame('/time/12:30', new Uri('/time/12:30')->getPath());
+    }
+
+    #[Test]
+    public function it_parses_an_empty_authority(): void
+    {
+        $uri = new Uri('///path');
+
+        self::assertSame('', $uri->getHost());
+        self::assertSame('/path', $uri->getPath());
+    }
+
+    #[Test]
+    public function it_parses_a_scheme_followed_by_a_path_rather_than_a_host_and_port(): void
+    {
+        $uri = new Uri('urn:isbn');
+
+        self::assertSame('urn', $uri->getScheme());
+        self::assertSame('', $uri->getHost());
+        self::assertSame('isbn', $uri->getPath());
+        self::assertSame('urn:isbn', (string) $uri);
+    }
+
+    #[Test]
+    public function it_parses_an_ipv6_host_with_a_port(): void
+    {
+        $uri = new Uri('http://[::1]:8080/');
+
+        self::assertSame('[::1]', $uri->getHost());
+        self::assertSame(8080, $uri->getPort());
+    }
+
+    #[Test]
+    public function it_treats_an_empty_port_as_no_port(): void
+    {
+        self::assertNull(new Uri('http://example.com:/')->getPort());
+    }
+
+    #[Test]
+    public function it_refuses_a_port_that_is_not_only_digits(): void
+    {
+        $this->expectException(InvalidUriException::class);
+        $this->expectExceptionMessage('The given URI "http://example.com:+80/" is invalid.');
+
+        new Uri('http://example.com:+80/');
+    }
+
+    #[Test]
+    public function it_refuses_a_port_with_more_than_five_digits(): void
+    {
+        $this->expectException(InvalidUriException::class);
+        $this->expectExceptionMessage('The given URI "http://example.com:123456/" is invalid.');
+
+        new Uri('http://example.com:123456/');
+    }
+
+    #[Test]
+    public function it_percent_encodes_control_characters_in_a_parsed_uri(): void
+    {
+        $uri = new Uri("http://us\ter:pa\nss@example.com/a\r\nb?q=\x01#f\x7f");
+
+        self::assertSame('us%09er:pa%0Ass', $uri->getUserInfo());
+        self::assertSame('http://us%09er:pa%0Ass@example.com/a%0D%0Ab?q=%01#f%7F', (string) $uri);
+    }
+
+    #[Test]
+    public function it_refuses_a_parsed_host_with_a_control_character_and_escapes_it_in_the_message(): void
+    {
+        try {
+            new Uri("http://exa\rmple.com/");
+
+            self::fail('Expected an InvalidUriException.');
+        } catch (InvalidUriException $exception) {
+            self::assertSame('The given host "exa\rmple.com" is invalid.', $exception->getMessage());
+            self::assertSame(['host' => "exa\rmple.com"], $exception->context);
+        }
+    }
+
+    #[Test]
+    public function it_splits_parsed_user_info_at_the_first_colon_and_the_host_at_the_last_at_sign(): void
+    {
+        self::assertSame('user:pa:ss%40word', new Uri('http://user:pa:ss@word@example.com/')->getUserInfo());
+    }
+
+    #[Test]
+    public function it_encodes_a_colon_in_the_user_but_not_in_the_password(): void
+    {
+        self::assertSame(
+            'us%3Aer:pa:ss',
+            new Uri('http://example.com')
+                ->withUserInfo('us:er', 'pa:ss')
+                ->getUserInfo(),
+        );
+    }
+
+    #[Test]
+    public function it_keeps_the_empty_authority_of_a_file_uri(): void
+    {
+        self::assertSame('file:///etc/hosts', (string) new Uri('file:///etc/hosts'));
+        self::assertSame('file:///etc/hosts', (string) new Uri('file:')->withPath('etc/hosts'));
+    }
 }

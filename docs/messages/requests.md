@@ -61,7 +61,13 @@ of the headers.
 ## Request target
 
 The request target is what goes on the request line, such as `/users?page=2`. Unless one was set, `getRequestTarget()`
-derives it from the URI: the path, or `/` when the path is empty, followed by `?` and the query when there is one.
+derives it from the URI: the path with exactly one leading slash, followed by `?` and the query when there is one. An
+empty path gives `/`, a rootless path `users` gives `/users`, and `//evil.example/path` gives `/evil.example/path`, so
+leading slashes cannot make the target read as an authority.
+
+The target derived from a URI is validated when the request is created and in `withUri()`. This package's `Uri` always
+produces a valid one, but a `UriInterface` from another library can return a path or query holding whitespace or a line
+break, which would split the request line. Such a URI throws `InvalidRequestException::invalidRequestTarget()`.
 
 `withRequestTarget($target)` sets it explicitly, for the other forms HTTP allows, such as `*` for `OPTIONS` or
 `example.com:443` for `CONNECT`. An explicit target stays in place when the URI changes.

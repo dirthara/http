@@ -30,9 +30,9 @@ try {
 | `InvalidRequestException` | `InvalidArgumentException` | Invalid methods, request targets, uploaded file trees, and parsed bodies. |
 | `InvalidResponseException` | `InvalidArgumentException` | Invalid status codes and reason phrases. |
 | `InvalidUriException` | `InvalidArgumentException` | URIs and components that are not valid. |
-| `InvalidStreamException` | `InvalidArgumentException` | Invalid resources, modes, and filenames, and stream operations that cannot be done. |
+| `InvalidStreamException` | `InvalidArgumentException` | Invalid resources, modes, filenames, and read lengths. |
 | `InvalidUploadedFileException` | `InvalidArgumentException` | Invalid uploaded file details and target paths. |
-| `StreamException` | `RuntimeException` | A file the stream factory cannot open. |
+| `StreamException` | `RuntimeException` | Stream operations that fail, and files the stream factory cannot open. |
 | `UploadedFileException` | `RuntimeException` | Uploaded files that failed, were already moved, or could not be moved. |
 
 The pages for each class list which situation throws which exception. All exception classes are `final`; catch them by
@@ -74,8 +74,20 @@ Some values an HTTP message carries are credentials or personal data, so the pac
 - Request targets are left out entirely, because a query string can hold tokens.
 - Parsed bodies are reduced to their type.
 
-Other exceptions do include what they rejected. `InvalidUriException::forInvalidUri()` includes the whole URI, which can
-hold a password or a token, and the stream and uploaded file exceptions include file paths.
+Other exceptions do include what they rejected, in both the message and the context:
+
+- `InvalidUriException::forInvalidUri()` includes the whole URI, which can hold a password in its user info or a token
+  in its query.
+- `StreamException::unableToOpen()` includes the whole filename, which can be a URL such as `ftp://user:password@host/`.
+- The uploaded file exceptions include file paths.
+
+:::caution
+The first two can put credentials in a log. Do not log them unfiltered when the URI or filename can come from outside
+the application.
+:::
+
+When a message quotes a rejected value, control characters in it are escaped, so a line break shows as `\n` and cannot
+forge a line in a log. The context holds the value as it was given.
 
 ## Logging
 

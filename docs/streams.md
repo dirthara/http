@@ -36,7 +36,7 @@ All three return `false` once the stream is detached or closed.
 
 | Method | Behavior |
 | --- | --- |
-| `read($length)` | Read up to `$length` bytes. `read(0)` returns `''`. |
+| `read($length)` | Read up to `$length` bytes, and at most 1 MiB per call. `read(0)` returns `''`. |
 | `getContents()` | Read everything from the current position to the end. |
 | `write($string)` | Write at the current position and return the number of bytes written. |
 | `tell()` | The current position. |
@@ -47,7 +47,7 @@ All three return `false` once the stream is detached or closed.
 | `getMetadata($key)` | All metadata from `stream_get_meta_data()`, or one entry, or `null` for a missing key. |
 | `detach()` | Return the resource and leave the stream unusable, without closing it. |
 | `close()` | Detach the resource and close it. |
-| `(string) $stream` | Rewind when seekable and return everything, or `''` on any failure. |
+| `(string) $stream` | Rewind when seekable and return everything, or `''` when reading fails. |
 
 :::caution
 Converting a stream to a string never throws, as PHP requires, so it returns `''` both for an empty stream and for one
@@ -58,10 +58,18 @@ that failed. Use `getContents()` when a failure must surface.
 
 | Situation | Exception |
 | --- | --- |
-| Reading from a stream that is not readable, or a failed read | `InvalidStreamException::notReadable()` |
-| Writing to a stream that is not writable, or a failed write | `InvalidStreamException::notWritable()` |
-| Seeking in a stream that is not seekable | `InvalidStreamException::notSeekable()` |
-| A seek PHP refuses | `InvalidStreamException::unableToSeek()` |
-| A position PHP cannot report | `InvalidStreamException::unableToTell()` |
+| Reading from a stream that is not readable, or a failed read | `StreamException::notReadable()` |
+| Writing to a stream that is not writable, or a failed write | `StreamException::notWritable()` |
+| Seeking in a stream that is not seekable | `StreamException::notSeekable()` |
+| A seek PHP refuses | `StreamException::unableToSeek()` |
+| A position PHP cannot report | `StreamException::unableToTell()` |
+| Any operation on a detached or closed stream, except those that report it | `StreamException::detached()` |
 | A negative read length | `InvalidStreamException::invalidReadLength()` |
-| Any operation on a detached or closed stream, except those that report it | `InvalidStreamException::detached()` |
+
+`StreamException` extends `RuntimeException`, as PSR-7 requires of these methods, so a `catch (\RuntimeException)`
+written against the interface catches every failure of a stream operation. Only a negative read length, a mistake in the
+call rather than a failure of the stream, is an `InvalidArgumentException`.
+
+The 1 MiB limit on `read()` exists because PHP allocates the whole requested length before reading, so a length taken
+from untrusted input could otherwise exhaust memory. Returning fewer bytes than asked is allowed; call `read()` again,
+or use `getContents()`, for more.

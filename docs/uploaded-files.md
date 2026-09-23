@@ -78,6 +78,7 @@ It tries each way in turn until one applies:
 | The upload failed | `UploadedFileException::uploadFailed()` |
 | The file was already moved | `UploadedFileException::alreadyMoved()` |
 | `move_uploaded_file()` failed | `UploadedFileException::unableToMove()` |
+| The stream cannot be read, for example because it was detached | `UploadedFileException::unableToReadStream()` |
 | The target cannot be opened for writing | `UploadedFileException::unableToOpenTarget()` |
 | The stream stopped producing data, or raised a `RuntimeException` | `UploadedFileException::unableToReadStream()`, with the stream's exception as the previous one |
 | Writing the target failed | `UploadedFileException::unableToWrite()` |

@@ -4,12 +4,15 @@ declare(strict_types=1);
 
 namespace Dirthara\Http;
 
-use Throwable;
+use RuntimeException;
 use Psr\Http\Message\StreamInterface;
+use Dirthara\Http\Exception\StreamException;
 use Dirthara\Http\Exception\InvalidStreamException;
 
 final class Stream implements StreamInterface
 {
+    private const int MAX_READ_LENGTH = 1024 * 1024;
+
     /**
      * @var resource|null
      */
@@ -54,7 +57,7 @@ final class Stream implements StreamInterface
             }
 
             return $this->getContents();
-        } catch (Throwable) {
+        } catch (RuntimeException) {
             return '';
         }
     }
@@ -99,7 +102,7 @@ final class Stream implements StreamInterface
     }
 
     /**
-     * @throws InvalidStreamException
+     * @throws StreamException
      */
     public function tell(): int
     {
@@ -108,7 +111,7 @@ final class Stream implements StreamInterface
         $position = ftell($resource);
 
         if ($position === false) {
-            throw InvalidStreamException::unableToTell();
+            throw StreamException::unableToTell();
         }
 
         return $position;
@@ -129,23 +132,23 @@ final class Stream implements StreamInterface
     }
 
     /**
-     * @throws InvalidStreamException
+     * @throws StreamException
      */
     public function seek(int $offset, int $whence = SEEK_SET): void
     {
         $resource = $this->getResource();
 
         if (!$this->seekable) {
-            throw InvalidStreamException::notSeekable();
+            throw StreamException::notSeekable();
         }
 
         if (fseek($resource, $offset, $whence) !== 0) {
-            throw InvalidStreamException::unableToSeek($offset, $whence);
+            throw StreamException::unableToSeek($offset, $whence);
         }
     }
 
     /**
-     * @throws InvalidStreamException
+     * @throws StreamException
      */
     public function rewind(): void
     {
@@ -158,14 +161,14 @@ final class Stream implements StreamInterface
     }
 
     /**
-     * @throws InvalidStreamException
+     * @throws StreamException
      */
     public function write(string $string): int
     {
         $resource = $this->getResource();
 
         if (!$this->writable) {
-            throw InvalidStreamException::notWritable();
+            throw StreamException::notWritable();
         }
 
         if ($string === '') {
@@ -175,7 +178,7 @@ final class Stream implements StreamInterface
         $written = fwrite($resource, $string);
 
         if ($written === false) {
-            throw InvalidStreamException::notWritable();
+            throw StreamException::notWritable();
         }
 
         return $written;
@@ -188,6 +191,7 @@ final class Stream implements StreamInterface
 
     /**
      * @throws InvalidStreamException
+     * @throws StreamException
      */
     public function read(int $length): string
     {
@@ -198,36 +202,37 @@ final class Stream implements StreamInterface
         $resource = $this->getResource();
 
         if (!$this->readable) {
-            throw InvalidStreamException::notReadable();
+            throw StreamException::notReadable();
         }
 
         if ($length === 0) {
             return '';
         }
 
-        $contents = fread($resource, $length);
+        // fread() allocates the whole length up front, so an untrusted length would exhaust memory.
+        $contents = fread($resource, min($length, self::MAX_READ_LENGTH));
 
         if ($contents === false) {
-            throw InvalidStreamException::notReadable($length);
+            throw StreamException::notReadable($length);
         }
 
         return $contents;
     }
 
     /**
-     * @throws InvalidStreamException
+     * @throws StreamException
      */
     public function getContents(): string
     {
         $resource = $this->getResource();
 
         if (!$this->readable) {
-            throw InvalidStreamException::notReadable();
+            throw StreamException::notReadable();
         }
 
         $contents = stream_get_contents($resource);
 
-        return $contents === false ? throw InvalidStreamException::notReadable() : $contents;
+        return $contents === false ? throw StreamException::notReadable() : $contents;
     }
 
     /**
@@ -252,12 +257,12 @@ final class Stream implements StreamInterface
     /**
      * @return resource
      *
-     * @throws InvalidStreamException
+     * @throws StreamException
      */
     private function getResource()
     {
         if ($this->resource === null) {
-            throw InvalidStreamException::detached();
+            throw StreamException::detached();
         }
 
         return $this->resource;

@@ -183,6 +183,10 @@ final class UploadedFile implements UploadedFileInterface
     {
         $stream = $this->getStream();
 
+        if (!$stream->isReadable()) {
+            throw UploadedFileException::unableToReadStream($targetPath);
+        }
+
         if ($stream->isSeekable()) {
             $stream->rewind();
         }

@@ -23,9 +23,12 @@ final class InvalidRequestException extends InvalidArgumentException implements 
 
     public static function invalidMethod(string $method): self
     {
-        return new self(message: sprintf('The HTTP request method "%s" is invalid.', $method), context: [
-            'method' => $method,
-        ]);
+        return new self(
+            message: sprintf('The HTTP request method "%s" is invalid.', self::printable($method)),
+            context: [
+                'method' => $method,
+            ],
+        );
     }
 
     public static function invalidRequestTarget(): self

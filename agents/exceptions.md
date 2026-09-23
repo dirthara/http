@@ -11,8 +11,9 @@ the package never asks a caller to give up an inheritance slot it does not own.
 
 Concrete exceptions are `final`. The interface is the extension point.
 
-The shared behaviour lives in the `HasExceptionContext` trait, which holds a protected `array<string, mixed> $context`
-and implements `getContext(): array` and `addContext(array $context): static`. Every exception uses the trait and
+The shared behaviour lives in the `HasExceptionContext` trait. It holds the context in a `public protected(set)
+array<string, mixed> $context` property, which callers read and only the exception writes, and implements
+`addContext(array $context): static`. The `HttpException` interface declares both. Every exception uses the trait and
 accepts an optional `array<string, mixed> $context` as the fourth constructor argument, after message, code, and
 previous, assigning it after the `parent::__construct()` call.
 
@@ -21,13 +22,22 @@ piece of context for one failure is written in one place. A factory passes its a
 `previous:`, `context:` — and attaches context through the constructor rather than chaining `addContext()`. Reserve
 `addContext()` for adding what a later frame knows to an exception that already exists.
 
+A message that quotes a rejected value passes it through the trait's `printable()`, which escapes control characters, so
+a value holding a line break cannot forge a line in a log. The context keeps the value as it was given.
+
 Exceptions carry data without logging themselves or depending on a logger package. The application exception handler can
-pass `getContext()` to a PSR-3 logger, adding the caught exception under the `exception` key. That key must contain the
-caught exception even if context already contains an `exception` entry.
+pass the `context` property to a PSR-3 logger, adding the caught exception under the `exception` key. That key must
+contain the caught exception even if context already contains an `exception` entry.
 
 Include useful diagnostic metadata, such as the operation and what it acted on. Do not include credentials or sensitive
 values in context. Make this concrete for the package: name the identifiers its exceptions should carry and the values
 they must never carry.
+
+In this package, exceptions carry header names but never header values, and leave out request targets and parsed
+bodies, which can hold tokens and form input. Two exceptions knowingly break the rule for now, and the documentation
+says so: `InvalidUriException::forInvalidUri()` quotes the whole URI and `StreamException::unableToOpen()` the whole
+filename, either of which can hold user info with a password or a query with a token. Leave them as they are until the
+maintainer decides whether to redact them.
 
 When a dependency can throw, catch the exception types it documents and rethrow them as a specialized exception from
 this package. Pass the original as `previous` and attach the operation's context. A caller should never need the

@@ -29,23 +29,7 @@ trait RequestTrait
 
     public function getRequestTarget(): string
     {
-        if ($this->requestTarget !== null) {
-            return $this->requestTarget;
-        }
-
-        $target = $this->uri->getPath();
-
-        if ($target === '') {
-            $target = '/';
-        }
-
-        $query = $this->uri->getQuery();
-
-        if ($query !== '') {
-            $target .= '?' . $query;
-        }
-
-        return $target;
+        return $this->requestTarget ?? $this->deriveRequestTarget($this->uri);
     }
 
     /**
@@ -92,10 +76,13 @@ trait RequestTrait
 
     /**
      * @throws InvalidMessageException
+     * @throws InvalidRequestException
      */
     // @mago-expect lint:no-boolean-flag-parameter -- PSR-7 defines this signature
     public function withUri(UriInterface $uri, bool $preserveHost = false): RequestInterface
     {
+        $this->validateRequestTarget($this->deriveRequestTarget($uri));
+
         $clone = clone($this, [
             'uri' => $uri,
         ]);
@@ -121,17 +108,28 @@ trait RequestTrait
         string $protocolVersion,
     ): void {
         $this->method = $this->validateMethod($method);
+        $this->validateRequestTarget($this->deriveRequestTarget($uri));
         $this->uri = $uri;
         $this->body = $body;
         $this->protocolVersion = $this->validateProtocolVersion($protocolVersion);
 
-        foreach ($headers as $name => $value) {
-            $this->setHeader((string) $name, $value);
-        }
+        $this->setHeaders($headers);
 
         if ($this->getHeaderLine('Host') === '') {
             $this->setHostFromUri($uri);
         }
+    }
+
+    /**
+     * The origin form of the URI: its path with exactly one leading slash, and its query. Collapsing leading slashes
+     * keeps a path such as //evil.example from reading as an authority.
+     */
+    private function deriveRequestTarget(UriInterface $uri): string
+    {
+        $target = '/' . ltrim($uri->getPath(), characters: '/');
+        $query = $uri->getQuery();
+
+        return $query === '' ? $target : $target . '?' . $query;
     }
 
     /**

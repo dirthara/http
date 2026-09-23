@@ -40,6 +40,7 @@ returns `'no-store, private, max-age=0'`.
 
 | Input | Rule | Exception |
 | --- | --- | --- |
+| Constructor headers | Keyed by name. A list such as `['Accept: text/html']` holds header lines, not headers. | `InvalidMessageException::headersNotKeyedByName()` |
 | Name | A token as defined by RFC 9110, listed below. | `InvalidMessageException::invalidHeaderName()` |
 | Value type | A string or an array holding only strings. | `InvalidMessageException::invalidHeaderValueType()` |
 | Empty array | An array must hold at least one value. | `InvalidMessageException::emptyHeaderValue()` |

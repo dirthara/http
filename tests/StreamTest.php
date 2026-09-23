@@ -8,6 +8,7 @@ use RuntimeException;
 use Dirthara\Http\Stream;
 use PHPUnit\Framework\TestCase;
 use PHPUnit\Framework\Attributes\Test;
+use Dirthara\Http\Exception\StreamException;
 use Dirthara\Http\Exception\InvalidStreamException;
 use Dirthara\Http\Tests\Doubles\FailingStreamWrapper;
 
@@ -241,7 +242,7 @@ final class StreamTest extends TestCase
     #[Test]
     public function it_reports_a_position_it_cannot_determine(): void
     {
-        $this->expectException(InvalidStreamException::class);
+        $this->expectException(StreamException::class);
         $this->expectExceptionMessage('Unable to tell stream position.');
 
         new Stream($this->pipeFrom('true'))->tell();
@@ -267,7 +268,7 @@ final class StreamTest extends TestCase
 
         self::assertFalse($stream->isSeekable());
 
-        $this->expectException(InvalidStreamException::class);
+        $this->expectException(StreamException::class);
         $this->expectExceptionMessage('Stream is not seekable.');
 
         $stream->seek(0);
@@ -279,8 +280,8 @@ final class StreamTest extends TestCase
         try {
             $this->stream('r+b', 'hello')->seek(-10);
 
-            self::fail('Expected an InvalidStreamException.');
-        } catch (InvalidStreamException $exception) {
+            self::fail('Expected a StreamException.');
+        } catch (StreamException $exception) {
             self::assertSame('Unable to seek to stream position -10 with whence 0.', $exception->getMessage());
             self::assertSame(['offset' => -10, 'whence' => SEEK_SET], $exception->context);
         }
@@ -299,7 +300,7 @@ final class StreamTest extends TestCase
     #[Test]
     public function it_refuses_to_write_to_a_stream_it_may_only_read(): void
     {
-        $this->expectException(InvalidStreamException::class);
+        $this->expectException(StreamException::class);
         $this->expectExceptionMessage('Unable to write to stream.');
 
         $this->stream('rb', 'hello')->write('more');
@@ -310,7 +311,7 @@ final class StreamTest extends TestCase
     {
         FailingStreamWrapper::register();
 
-        $this->expectException(InvalidStreamException::class);
+        $this->expectException(StreamException::class);
         $this->expectExceptionMessage('Unable to write to stream.');
 
         new Stream(FailingStreamWrapper::open('r+b'))->write('hello');
@@ -342,7 +343,7 @@ final class StreamTest extends TestCase
     #[Test]
     public function it_refuses_to_read_a_stream_it_may_only_write(): void
     {
-        $this->expectException(InvalidStreamException::class);
+        $this->expectException(StreamException::class);
         $this->expectExceptionMessage('Unable to read from stream.');
 
         $this->stream('wb')->read(1);
@@ -351,7 +352,7 @@ final class StreamTest extends TestCase
     #[Test]
     public function it_reports_a_read_that_fails(): void
     {
-        $this->expectException(InvalidStreamException::class);
+        $this->expectException(StreamException::class);
         $this->expectExceptionMessage('Unable to read from stream with length 8.');
 
         new Stream($this->directoryHandle())->read(8);
@@ -370,7 +371,7 @@ final class StreamTest extends TestCase
     #[Test]
     public function it_refuses_to_return_the_contents_of_a_stream_it_may_only_write(): void
     {
-        $this->expectException(InvalidStreamException::class);
+        $this->expectException(StreamException::class);
         $this->expectExceptionMessage('Unable to read from stream.');
 
         $this->stream('wb')->getContents();
@@ -420,10 +421,20 @@ final class StreamTest extends TestCase
                 $operation($stream);
 
                 self::fail(sprintf('Expected %s() to refuse a detached stream.', $name));
-            } catch (InvalidStreamException $exception) {
+            } catch (StreamException $exception) {
                 self::assertSame('Stream has been detached.', $exception->getMessage(), $name);
+                self::assertInstanceOf(RuntimeException::class, $exception, $name);
             }
         }
+    }
+
+    #[Test]
+    public function it_reads_at_most_a_mebibyte_at_a_time_whatever_length_is_asked(): void
+    {
+        $stream = $this->stream('r+b', str_repeat('a', (1024 * 1024) + 10));
+
+        self::assertSame(1024 * 1024, strlen($stream->read(PHP_INT_MAX)));
+        self::assertSame('aaaaaaaaaa', $stream->read(PHP_INT_MAX));
     }
 
     private function stream(string $mode, string $contents = ''): Stream

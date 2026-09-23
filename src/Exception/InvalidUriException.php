@@ -23,26 +23,33 @@ final class InvalidUriException extends InvalidArgumentException implements Http
 
     public static function forInvalidUri(string $uri): self
     {
-        return new self(message: sprintf('The given URI "%s" is invalid.', $uri), context: [
+        return new self(message: sprintf('The given URI "%s" is invalid.', self::printable($uri)), context: [
             'uri' => $uri,
         ]);
     }
 
     public static function invalidScheme(string $scheme): self
     {
-        return new self(message: sprintf('The given scheme "%s" is invalid.', $scheme), context: ['scheme' => $scheme]);
+        return new self(message: sprintf('The given scheme "%s" is invalid.', self::printable($scheme)), context: [
+            'scheme' => $scheme,
+        ]);
     }
 
     public static function invalidIpLiteralHost(string $literal): self
     {
-        return new self(message: sprintf('The given IP literal host "%s" is invalid.', $literal), context: [
-            'literal' => $literal,
-        ]);
+        return new self(
+            message: sprintf('The given IP literal host "%s" is invalid.', self::printable($literal)),
+            context: [
+                'literal' => $literal,
+            ],
+        );
     }
 
     public static function invalidHost(string $host): self
     {
-        return new self(message: sprintf('The given host "%s" is invalid.', $host), context: ['host' => $host]);
+        return new self(message: sprintf('The given host "%s" is invalid.', self::printable($host)), context: [
+            'host' => $host,
+        ]);
     }
 
     public static function invalidPort(int $port): self

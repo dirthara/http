@@ -25,10 +25,12 @@ Report security issues in message, URI, stream, uploaded file, or factory behavi
 development configuration.
 
 The package defends against malformed HTTP messages. It refuses header names that are not tokens, header values and
-reason phrases containing line breaks or other control characters, and request targets containing whitespace, so
-application input cannot split a message or inject a header. Methods, protocol versions, status codes, and URI
-components are validated when they are set. Header values, request targets, and parsed bodies are kept out of exception
-messages and context. Whole URIs and file paths are included, for diagnosis.
+reason phrases containing line breaks or other control characters, and request targets containing whitespace, including
+a target derived from another library's URI, so application input cannot split a message or inject a header. Methods,
+protocol versions, status codes, and URI components are validated when they are set, and a parsed URI string gets the
+same validation and percent-encoding as the `with*()` methods. Header values, request targets, and parsed bodies are
+kept out of exception messages and context, and control characters in a quoted value are escaped. Whole URIs and
+filenames are included, for diagnosis, and can hold credentials; see the error handling documentation.
 
 The package does not decide what is safe to send or accept. It does not authenticate or authorize requests, limit their
 size, sanitize bodies, or validate uploaded file contents. Client-supplied filenames and media types are returned as

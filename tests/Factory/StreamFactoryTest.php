@@ -131,6 +131,33 @@ final class StreamFactoryTest extends TestCase
     }
 
     #[Test]
+    public function it_refuses_to_open_a_directory(): void
+    {
+        $this->expectException(StreamException::class);
+        $this->expectExceptionMessage(sprintf('Unable to open "%s" with mode "r".', $this->directory));
+
+        new StreamFactory()->createStreamFromFile($this->directory);
+    }
+
+    #[Test]
+    public function it_escapes_control_characters_in_the_message_for_a_file_it_cannot_open(): void
+    {
+        $path = $this->directory . "/missing\n.txt";
+
+        try {
+            new StreamFactory()->createStreamFromFile($path);
+
+            self::fail('Expected a StreamException.');
+        } catch (StreamException $exception) {
+            self::assertSame(
+                sprintf('Unable to open "%s/missing\\n.txt" with mode "r".', $this->directory),
+                $exception->getMessage(),
+            );
+            self::assertSame(['filename' => $path, 'mode' => 'r'], $exception->context);
+        }
+    }
+
+    #[Test]
     public function it_creates_a_stream_from_a_resource(): void
     {
         $resource = fopen('php://memory', mode: 'r+b');

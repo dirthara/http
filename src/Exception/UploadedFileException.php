@@ -40,23 +40,32 @@ final class UploadedFileException extends RuntimeException implements HttpExcept
 
     public static function unableToMove(string $targetPath): self
     {
-        return new self(message: sprintf('Unable to move uploaded file to "%s".', $targetPath), context: [
-            'targetPath' => $targetPath,
-        ]);
+        return new self(
+            message: sprintf('Unable to move uploaded file to "%s".', self::printable($targetPath)),
+            context: [
+                'targetPath' => $targetPath,
+            ],
+        );
     }
 
     public static function unableToRemoveSource(string $sourcePath): self
     {
-        return new self(message: sprintf('Unable to remove uploaded file source "%s".', $sourcePath), context: [
-            'sourcePath' => $sourcePath,
-        ]);
+        return new self(
+            message: sprintf('Unable to remove uploaded file source "%s".', self::printable($sourcePath)),
+            context: [
+                'sourcePath' => $sourcePath,
+            ],
+        );
     }
 
     public static function unableToOpenTarget(string $targetPath): self
     {
-        return new self(message: sprintf('Unable to open target path "%s" for writing.', $targetPath), context: [
-            'targetPath' => $targetPath,
-        ]);
+        return new self(
+            message: sprintf('Unable to open target path "%s" for writing.', self::printable($targetPath)),
+            context: [
+                'targetPath' => $targetPath,
+            ],
+        );
     }
 
     public static function unableToReadStream(string $targetPath, ?Throwable $previous = null): self
@@ -77,7 +86,7 @@ final class UploadedFileException extends RuntimeException implements HttpExcept
 
     public static function unableToCloseTarget(string $targetPath): self
     {
-        return new self(message: sprintf('Unable to close target file "%s".', $targetPath), context: [
+        return new self(message: sprintf('Unable to close target file "%s".', self::printable($targetPath)), context: [
             'targetPath' => $targetPath,
         ]);
     }

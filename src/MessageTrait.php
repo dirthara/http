@@ -154,6 +154,24 @@ trait MessageTrait
     }
 
     /**
+     * @param array<array-key, string|array<array-key, string>> $headers
+     *
+     * @throws InvalidMessageException
+     */
+    private function setHeaders(array $headers): void
+    {
+        // A list such as ['Accept: text/html'] holds header lines, not headers keyed by name.
+        if ($headers !== [] && array_is_list($headers)) {
+            throw InvalidMessageException::headersNotKeyedByName();
+        }
+
+        foreach ($headers as $name => $value) {
+            // A numeric header name such as "123" arrives as an int key.
+            $this->setHeader((string) $name, $value);
+        }
+    }
+
+    /**
      * @throws InvalidMessageException
      */
     private function addHeader(string $name, mixed $value): void

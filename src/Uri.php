@@ -18,6 +18,14 @@ final class Uri implements UriInterface
         'https' => 443,
     ];
 
+    /**
+     * RFC 3986, appendix B: scheme, authority, path, query, and fragment. The authority, query, and fragment groups keep
+     * their delimiters, so an empty part is told apart from a missing one.
+     */
+    private const string URI_PATTERN = '~^(?:([^:/?#]+):)?(//[^/?#]*)?([^?#]*)(\?[^#]*)?(#.*)?$~sD';
+
+    private const string HOST_PORT_PATTERN = '/^(\[[^\]]*\]|[^:]*)(:\d*)?$/D';
+
     private const string SCHEME_PATTERN = '/^[a-z][a-z0-9+.-]*$/iD';
 
     private const string HOST_PATTERN = '/^(?:[a-z0-9._~!$&\'()*+,;=-]|%[a-f0-9]{2})+$/iD';
@@ -47,42 +55,28 @@ final class Uri implements UriInterface
             return;
         }
 
-        $parts = parse_url($uri);
+        // Every part is optional, so the pattern matches any string. PHP leaves out unmatched groups at the end.
+        $parts = [];
+        preg_match(self::URI_PATTERN, $uri, $parts);
 
-        if ($parts === false) {
-            throw InvalidUriException::forInvalidUri($uri);
+        [, $scheme, $authority, $path, $query, $fragment] = $parts + ['', '', '', '', '', ''];
+
+        if ($scheme !== '') {
+            $this->scheme = $this->normalizeScheme($scheme);
         }
 
-        if (array_key_exists('scheme', $parts)) {
-            $this->scheme = $this->normalizeScheme($parts['scheme']);
+        if ($authority !== '') {
+            $this->parseAuthority($uri, substr($authority, offset: 2));
         }
 
-        if (array_key_exists('user', $parts)) {
-            $this->userInfo = $this->encodeUserInfo($parts['user']);
+        $this->path = $this->encodePath($path);
 
-            if (array_key_exists('pass', $parts)) {
-                $this->userInfo .= ':' . $this->encodeUserInfo($parts['pass']);
-            }
+        if ($query !== '') {
+            $this->query = $this->encodeQueryOrFragment(substr($query, offset: 1));
         }
 
-        if (array_key_exists('host', $parts)) {
-            $this->host = $this->normalizeHost($parts['host']);
-        }
-
-        if (array_key_exists('port', $parts)) {
-            $this->port = $this->validatePort($parts['port']);
-        }
-
-        if (array_key_exists('path', $parts)) {
-            $this->path = $this->encodePath($parts['path']);
-        }
-
-        if (array_key_exists('query', $parts)) {
-            $this->query = $this->encodeQueryOrFragment($parts['query']);
-        }
-
-        if (array_key_exists('fragment', $parts)) {
-            $this->fragment = $this->encodeQueryOrFragment($parts['fragment']);
+        if ($fragment !== '') {
+            $this->fragment = $this->encodeQueryOrFragment(substr($fragment, offset: 1));
         }
     }
 
@@ -170,15 +164,7 @@ final class Uri implements UriInterface
 
     public function withUserInfo(string $user, #[SensitiveParameter] ?string $password = null): UriInterface
     {
-        $userInfo = '';
-
-        if ($user !== '') {
-            $userInfo = self::encodeUserInfo($user);
-
-            if ($password !== null) {
-                $userInfo .= ':' . self::encodeUserInfo($password);
-            }
-        }
+        $userInfo = $this->buildUserInfo($user, $password);
 
         if ($userInfo === $this->userInfo) {
             return $this;
@@ -272,17 +258,20 @@ final class Uri implements UriInterface
 
         $authority = $this->getAuthority();
 
-        if ($authority !== '') {
+        // A file URI keeps its empty authority, so file:///etc/hosts does not become file:/etc/hosts.
+        $hasAuthority = $authority !== '' || $this->scheme === 'file';
+
+        if ($hasAuthority) {
             $uri .= '//' . $authority;
         }
 
         $path = $this->path;
 
-        if ($authority !== '' && $path !== '' && $path[0] !== '/') {
+        if ($hasAuthority && $path !== '' && $path[0] !== '/') {
             $path = '/' . $path;
         }
 
-        if ($authority === '' && str_starts_with($path, '//')) {
+        if (!$hasAuthority && str_starts_with($path, '//')) {
             $path = '/' . ltrim($path, characters: '/');
         }
 
@@ -297,6 +286,51 @@ final class Uri implements UriInterface
         }
 
         return $uri;
+    }
+
+    /**
+     * @throws InvalidUriException
+     */
+    private function parseAuthority(string $uri, string $authority): void
+    {
+        $at = strrpos($authority, needle: '@');
+
+        if ($at !== false) {
+            $this->userInfo = $this->parseUserInfo(substr($authority, offset: 0, length: $at));
+            $authority = substr($authority, $at + 1);
+        }
+
+        $hostAndPort = [];
+
+        if (!preg_match(self::HOST_PORT_PATTERN, $authority, $hostAndPort)) {
+            throw InvalidUriException::forInvalidUri($uri);
+        }
+
+        [, $host, $port] = $hostAndPort + ['', '', ''];
+
+        $this->host = $this->normalizeHost($host);
+
+        // The group keeps its colon: ':' alone is an empty port, which RFC 3986 allows and means none.
+        if (strlen($port) <= 1) {
+            return;
+        }
+
+        if (strlen($port) > 6) {
+            throw InvalidUriException::forInvalidUri($uri);
+        }
+
+        $this->port = $this->validatePort((int) substr($port, offset: 1));
+    }
+
+    private function parseUserInfo(#[SensitiveParameter] string $userInfo): string
+    {
+        $colon = strpos($userInfo, needle: ':');
+
+        if ($colon === false) {
+            return $this->buildUserInfo($userInfo, null);
+        }
+
+        return $this->buildUserInfo(substr($userInfo, offset: 0, length: $colon), substr($userInfo, $colon + 1));
     }
 
     /**
@@ -377,9 +411,20 @@ final class Uri implements UriInterface
         return $this->percentEncode($value, "!$&'()*+,;=:@/?");
     }
 
-    private function encodeUserInfo(string $value): string
+    private function buildUserInfo(string $user, #[SensitiveParameter] ?string $password): string
     {
-        return $this->percentEncode($value, "!$&'()*+,;=:");
+        if ($user === '') {
+            return '';
+        }
+
+        // The first colon separates the user from the password, so only the password may contain one unencoded.
+        $userInfo = $this->percentEncode($user, "!$&'()*+,;=");
+
+        if ($password !== null) {
+            $userInfo .= ':' . $this->percentEncode($password, "!$&'()*+,;=:");
+        }
+
+        return $userInfo;
     }
 
     private function percentEncode(string $value, string $extraAllowed): string

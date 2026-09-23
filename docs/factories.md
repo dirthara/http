@@ -59,7 +59,7 @@ $factory = new RequestFactory(uriFactory: $otherUriFactory, streamFactory: $othe
 | --- | --- |
 | A mode `fopen()` does not accept | `InvalidStreamException::invalidMode()` |
 | An empty filename, or one with a null byte | `InvalidStreamException::invalidFilename()` |
-| A file that cannot be opened | `StreamException::unableToOpen()` |
+| A file that cannot be opened, or a directory | `StreamException::unableToOpen()` |
 | Something other than a stream resource | `InvalidStreamException::invalidResource()` |
 
 A mode starts with `r`, `w`, `a`, `x`, or `c`, and can add `+` and the flags `b`, `t`, and `e`, such as `'r+b'` or

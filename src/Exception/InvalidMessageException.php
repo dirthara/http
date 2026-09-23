@@ -23,14 +23,22 @@ final class InvalidMessageException extends InvalidArgumentException implements 
 
     public static function invalidProtocolVersion(string $version): self
     {
-        return new self(message: sprintf('The HTTP protocol version "%s" is invalid.', $version), context: [
-            'version' => $version,
-        ]);
+        return new self(
+            message: sprintf('The HTTP protocol version "%s" is invalid.', self::printable($version)),
+            context: [
+                'version' => $version,
+            ],
+        );
+    }
+
+    public static function headersNotKeyedByName(): self
+    {
+        return new self(message: 'HTTP headers must be keyed by name, a list was given.');
     }
 
     public static function invalidHeaderName(string $name): self
     {
-        return new self(message: sprintf('The HTTP header name "%s" is invalid.', $name), context: [
+        return new self(message: sprintf('The HTTP header name "%s" is invalid.', self::printable($name)), context: [
             'name' => $name,
         ]);
     }

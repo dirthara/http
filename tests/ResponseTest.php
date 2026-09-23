@@ -181,6 +181,15 @@ final class ResponseTest extends TestCase
         self::assertSame($response, $response->withStatus(StatusCode::Ok));
     }
 
+    #[Test]
+    public function it_refuses_headers_given_as_a_list_of_lines(): void
+    {
+        $this->expectException(InvalidMessageException::class);
+        $this->expectExceptionMessage('HTTP headers must be keyed by name, a list was given.');
+
+        new Response(200, new MemoryStream(), ['Content-Type: text/plain']);
+    }
+
     private function response(): Response
     {
         return new Response(200, new MemoryStream());

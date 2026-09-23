@@ -8,6 +8,7 @@ use Dirthara\Http\Uri;
 use Dirthara\Http\Request;
 use PHPUnit\Framework\TestCase;
 use PHPUnit\Framework\Attributes\Test;
+use Dirthara\Http\Tests\Doubles\ForeignUri;
 use Dirthara\Http\Tests\Doubles\MemoryStream;
 use Dirthara\Http\Exception\InvalidMessageException;
 use Dirthara\Http\Exception\InvalidRequestException;
@@ -93,7 +94,7 @@ final class RequestTest extends TestCase
 
             self::fail('Expected an InvalidRequestException.');
         } catch (InvalidRequestException $exception) {
-            self::assertSame("The HTTP request method \"GET\r\n\" is invalid.", $exception->getMessage());
+            self::assertSame('The HTTP request method "GET\r\n" is invalid.', $exception->getMessage());
             self::assertSame(['method' => "GET\r\n"], $exception->context);
         }
     }
@@ -114,7 +115,7 @@ final class RequestTest extends TestCase
 
             self::fail('Expected an InvalidMessageException.');
         } catch (InvalidMessageException $exception) {
-            self::assertSame("The HTTP protocol version \"1.1\n\" is invalid.", $exception->getMessage());
+            self::assertSame('The HTTP protocol version "1.1\n" is invalid.', $exception->getMessage());
             self::assertSame(['version' => "1.1\n"], $exception->context);
         }
     }
@@ -419,6 +420,67 @@ final class RequestTest extends TestCase
             'other.test',
             $this->request()->withUri(new Uri('http://other.test/'), preserveHost: true)->getHeaderLine('Host'),
         );
+    }
+
+    #[Test]
+    public function it_gives_a_rootless_path_a_leading_slash_in_the_request_target(): void
+    {
+        $request = new Request('GET', new Uri('http://example.com')->withPath('users'), new MemoryStream());
+
+        self::assertSame('/users', $request->getRequestTarget());
+    }
+
+    #[Test]
+    public function it_collapses_leading_slashes_in_the_request_target_so_they_cannot_read_as_an_authority(): void
+    {
+        $request = new Request('GET', new Uri('http://example.com//evil.example///path'), new MemoryStream());
+
+        self::assertSame('/evil.example///path', $request->getRequestTarget());
+    }
+
+    #[Test]
+    public function it_refuses_a_foreign_uri_whose_request_target_would_split_the_request_line(): void
+    {
+        try {
+            new Request('GET', new ForeignUri("/a\r\nX-Injected: yes"), new MemoryStream());
+
+            self::fail('Expected an InvalidRequestException.');
+        } catch (InvalidRequestException $exception) {
+            self::assertSame(
+                'The HTTP request target cannot be empty or contain whitespace or control characters.',
+                $exception->getMessage(),
+            );
+        }
+    }
+
+    #[Test]
+    public function it_refuses_to_change_to_a_foreign_uri_with_an_unsafe_query(): void
+    {
+        $this->expectException(InvalidRequestException::class);
+
+        $this->request()->withUri(new ForeignUri('/search', 'q=a b'));
+    }
+
+    #[Test]
+    public function it_accepts_a_foreign_uri_with_a_safe_request_target(): void
+    {
+        $request = new Request('GET', new ForeignUri('/search', 'q=a', 'example.com'), new MemoryStream());
+
+        self::assertSame('/search?q=a', $request->getRequestTarget());
+        self::assertSame('example.com', $request->getHeaderLine('Host'));
+    }
+
+    #[Test]
+    public function it_refuses_headers_given_as_a_list_of_lines(): void
+    {
+        try {
+            new Request('GET', new Uri(), new MemoryStream(), ['Accept: text/html']);
+
+            self::fail('Expected an InvalidMessageException.');
+        } catch (InvalidMessageException $exception) {
+            self::assertSame('HTTP headers must be keyed by name, a list was given.', $exception->getMessage());
+            self::assertSame([], $exception->context);
+        }
     }
 
     private function request(string $method = 'GET'): Request

@@ -8,6 +8,7 @@ use RuntimeException;
 use Dirthara\Http\UploadedFile;
 use PHPUnit\Framework\TestCase;
 use PHPUnit\Framework\Attributes\Test;
+use Dirthara\Http\Factory\StreamFactory;
 use Dirthara\Http\Tests\Doubles\MemoryStream;
 use Dirthara\Http\Exception\UploadedFileException;
 use Dirthara\Http\Exception\InvalidUploadedFileException;
@@ -254,6 +255,26 @@ final class UploadedFileTest extends TestCase
             );
             self::assertSame(['targetPath' => $target], $exception->context);
         }
+    }
+
+    #[Test]
+    public function it_refuses_to_move_a_stream_it_cannot_read_instead_of_writing_an_empty_file(): void
+    {
+        $stream = new StreamFactory()->createStream('contents');
+        $file = new UploadedFile($stream);
+        $stream->detach();
+        $target = $this->path('target');
+
+        try {
+            $file->moveTo($target);
+
+            self::fail('Expected an UploadedFileException.');
+        } catch (UploadedFileException $exception) {
+            self::assertSame('Unable to read from uploaded file stream.', $exception->getMessage());
+            self::assertSame(['targetPath' => $target], $exception->context);
+        }
+
+        self::assertFileDoesNotExist($target);
     }
 
     #[Test]

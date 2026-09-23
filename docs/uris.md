@@ -21,15 +21,18 @@ $uri->getPath();      // '/a%20b'
 (string) $uri;        // 'https://user:secret@example.com/a%20b?q=1#top'
 ```
 
-`new Uri()` without an argument is an empty URI. A string `parse_url()` cannot parse throws
-`InvalidUriException::forInvalidUri()`.
+`new Uri()` without an argument is an empty URI. A string is split into its components as RFC 3986 describes, so
+`/time/12:30` is a path, `urn:isbn` is a scheme and a path, and `///path` has an empty authority. Each component is then
+validated or percent-encoded exactly as the matching `with*()` method would: a control character in a path is encoded
+as `%0D`, and one in a host throws. An authority that is not a host with an optional port of up to five digits throws
+`InvalidUriException::forInvalidUri()`; an empty port, as in `http://example.com:/`, means no port.
 
 ## Components
 
 | Component | Read | Change | Normalization and rules |
 | --- | --- | --- | --- |
 | Scheme | `getScheme()` | `withScheme()` | Lowercased. Starts with a letter, then letters, digits, `+`, `-`, or `.`. |
-| User info | `getUserInfo()` | `withUserInfo($user, $password)` | Percent-encoded. An empty user removes the user info, password included. |
+| User info | `getUserInfo()` | `withUserInfo($user, $password)` | Percent-encoded, including a `:` in the user, which would otherwise start the password. An empty user removes the user info, password included. |
 | Host | `getHost()` | `withHost()` | Lowercased. A registered name, or an IPv6 or IPvFuture literal in brackets. |
 | Port | `getPort()` | `withPort()` | From `1` to `65535`, or `null` for none. |
 | Path | `getPath()` | `withPath()` | Percent-encoded. |
@@ -57,14 +60,15 @@ is, so encoding never happens twice. A `%` that does not start a triplet is enco
 
 ### Building a string
 
-When there is an authority, a path without a leading slash gets one. When there is none, a path starting with `//` is
+When there is an authority, a path without a leading slash gets one. A `file` URI keeps its empty authority, so
+`file:///etc/hosts` round-trips as it was given. When there is no authority, a path starting with `//` is
 reduced to a single slash, so it cannot be mistaken for an authority.
 
 ## Validation
 
 | Input | Exception |
 | --- | --- |
-| A string `parse_url()` cannot parse | `InvalidUriException::forInvalidUri()` |
+| An authority that is not a host with an optional port, or a port of more than five digits | `InvalidUriException::forInvalidUri()` |
 | An invalid scheme | `InvalidUriException::invalidScheme()` |
 | An invalid host | `InvalidUriException::invalidHost()` |
 | A bracketed host that is not IPv6 or IPvFuture, or is not closed | `InvalidUriException::invalidIpLiteralHost()` |

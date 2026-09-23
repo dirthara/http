@@ -41,6 +41,11 @@ final class StreamFactory implements StreamFactoryInterface
             throw InvalidStreamException::invalidFilename($filename);
         }
 
+        // fopen() opens a directory for reading on some platforms, and reading it then fails with a notice.
+        if (is_dir($filename)) {
+            throw StreamException::unableToOpen($filename, $mode);
+        }
+
         // @mago-expect lint:no-error-control-operator -- the false return is reported as unableToOpen
         $resource = @fopen($filename, $mode);
 

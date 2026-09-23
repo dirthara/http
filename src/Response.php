@@ -37,9 +37,7 @@ final class Response implements ResponseInterface
         $this->body = $body;
         $this->protocolVersion = $this->validateProtocolVersion($protocolVersion);
 
-        foreach ($headers as $name => $value) {
-            $this->setHeader((string) $name, $value);
-        }
+        $this->setHeaders($headers);
     }
 
     public function getStatusCode(): int
