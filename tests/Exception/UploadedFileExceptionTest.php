@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Dirthara\Http\Tests\Exception;
 
 use RuntimeException;
+use Dirthara\Http\UploadError;
 use PHPUnit\Framework\TestCase;
 use PHPUnit\Framework\Attributes\Test;
 use Dirthara\Http\Exception\UploadedFileException;
@@ -25,7 +26,7 @@ final class UploadedFileExceptionTest extends TestCase
     #[Test]
     public function it_merges_what_is_added_to_its_context(): void
     {
-        $exception = UploadedFileException::uploadFailed(UPLOAD_ERR_PARTIAL);
+        $exception = UploadedFileException::uploadFailed(UploadError::Partial);
 
         self::assertSame($exception, $exception->addContext(['error' => 0, 'targetPath' => '/tmp/target']));
         self::assertSame(['error' => 0, 'targetPath' => '/tmp/target'], $exception->context);

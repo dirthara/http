@@ -16,8 +16,6 @@ use function array_is_list;
 use function array_key_exists;
 
 /**
- * The headers of a message, looked up without regard to case and kept under the name each was first given.
- *
  * @internal
  */
 final readonly class Headers
@@ -59,9 +57,6 @@ final readonly class Headers
     }
 
     /**
-     * A numeric header name such as "123" comes back as an int key, because PHP turns every numeric string array key
-     * into an int.
-     *
      * @return array<array-key, list<string>>
      */
     public function all(): array
@@ -125,8 +120,6 @@ final readonly class Headers
     }
 
     /**
-     * Replaces a header under the name it already has, and moves it to the front.
-     *
      * @throws InvalidMessageException
      */
     public function withFirst(string $name, string $value): self

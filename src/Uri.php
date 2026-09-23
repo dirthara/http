@@ -9,19 +9,10 @@ use SensitiveParameter;
 use Psr\Http\Message\UriInterface;
 use Dirthara\Http\Exception\InvalidUriException;
 
-use function ord;
 use function ltrim;
-use function strlen;
-use function strpos;
 use function substr;
-use function sprintf;
-use function strrpos;
-use function filter_var;
 use function preg_match;
 use function strtolower;
-use function ctype_xdigit;
-use function str_contains;
-use function str_ends_with;
 use function str_starts_with;
 
 final readonly class Uri implements UriInterface, Stringable
@@ -40,21 +31,11 @@ final readonly class Uri implements UriInterface, Stringable
      */
     private const string URI_PATTERN = '~^(?:([^:/?#]+):)?(//[^/?#]*)?([^?#]*)(\?[^#]*)?(#.*)?$~sD';
 
-    private const string HOST_PORT_PATTERN = '/^(\[[^\]]*\]|[^:]*)(:\d*)?$/D';
-
     private const string SCHEME_PATTERN = '/^[a-z][a-z0-9+.-]*$/iD';
-
-    private const string HOST_PATTERN = '/^(?:[a-z0-9._~!$&\'()*+,;=-]|%[a-f0-9]{2})+$/iD';
-
-    private const string IP_FUTURE_PATTERN = '/^v[a-f0-9]+\.[a-z0-9._~!$&\'()*+,;=:-]+$/iD';
 
     private string $scheme;
 
-    private string $userInfo;
-
-    private string $host;
-
-    private ?int $port;
+    private Authority $authority;
 
     private string $path;
 
@@ -72,14 +53,10 @@ final readonly class Uri implements UriInterface, Stringable
         preg_match(self::URI_PATTERN, $uri, $parts);
 
         [, $scheme, $authority, $path, $query, $fragment] = $parts + ['', '', '', '', '', ''];
-        [$userInfo, $host, $port] = $authority === ''
-            ? ['', '', null]
-            : $this->parseAuthority($uri, substr($authority, offset: 2));
-
         $this->scheme = $this->normalizeScheme($scheme);
-        $this->userInfo = $userInfo;
-        $this->host = $host;
-        $this->port = $port;
+        $this->authority = $authority === ''
+            ? Authority::empty()
+            : Authority::fromString(substr($authority, offset: 2), $uri);
         $this->path = $this->encodePath($path);
         $this->query = $this->encodeQueryOrFragment(substr($query, offset: 1));
         $this->fragment = $this->encodeQueryOrFragment(substr($fragment, offset: 1));
@@ -132,17 +109,17 @@ final readonly class Uri implements UriInterface, Stringable
 
     public function getAuthority(): string
     {
-        if ($this->host === '') {
+        if ($this->authority->host === '') {
             return '';
         }
 
         $authority = '';
 
-        if ($this->userInfo !== '') {
-            $authority .= $this->userInfo . '@';
+        if ($this->authority->userInfo !== '') {
+            $authority .= $this->authority->userInfo . '@';
         }
 
-        $authority .= $this->host;
+        $authority .= $this->authority->host;
 
         $port = $this->getPort();
 
@@ -155,25 +132,23 @@ final readonly class Uri implements UriInterface, Stringable
 
     public function getUserInfo(): string
     {
-        return $this->userInfo;
+        return $this->authority->userInfo;
     }
 
     public function getHost(): string
     {
-        return $this->host;
+        return $this->authority->host;
     }
 
     public function getPort(): ?int
     {
-        if ($this->port === null) {
+        $port = $this->authority->port;
+
+        if ($port === null || (self::STANDARD_PORTS[$this->scheme] ?? null) === $port) {
             return null;
         }
 
-        if ((self::STANDARD_PORTS[$this->scheme] ?? null) === $this->port) {
-            return null;
-        }
-
-        return $this->port;
+        return $port;
     }
 
     public function getPath(): string
@@ -209,14 +184,14 @@ final readonly class Uri implements UriInterface, Stringable
 
     public function withUserInfo(string $user, #[SensitiveParameter] ?string $password = null): UriInterface
     {
-        $userInfo = $this->buildUserInfo($user, $password);
+        $authority = $this->authority->withUserInfo($user, $password);
 
-        if ($userInfo === $this->userInfo) {
+        if ($authority->userInfo === $this->authority->userInfo) {
             return $this;
         }
 
         return clone($this, [
-            'userInfo' => $userInfo,
+            'authority' => $authority,
         ]);
     }
 
@@ -225,14 +200,14 @@ final readonly class Uri implements UriInterface, Stringable
      */
     public function withHost(string $host): UriInterface
     {
-        $host = $this->normalizeHost($host);
+        $authority = $this->authority->withHost($host);
 
-        if ($host === $this->host) {
+        if ($authority->host === $this->authority->host) {
             return $this;
         }
 
         return clone($this, [
-            'host' => $host,
+            'authority' => $authority,
         ]);
     }
 
@@ -241,16 +216,14 @@ final readonly class Uri implements UriInterface, Stringable
      */
     public function withPort(?int $port): UriInterface
     {
-        if ($port !== null) {
-            $port = $this->validatePort($port);
-        }
+        $authority = $this->authority->withPort($port);
 
-        if ($port === $this->port) {
+        if ($authority->port === $this->authority->port) {
             return $this;
         }
 
         return clone($this, [
-            'port' => $port,
+            'authority' => $authority,
         ]);
     }
 
@@ -295,61 +268,6 @@ final readonly class Uri implements UriInterface, Stringable
 
     /**
      * @throws InvalidUriException
-     *
-     * @return array{string, string, int|null}
-     */
-    private function parseAuthority(string $uri, string $authority): array
-    {
-        $userInfo = '';
-        $at = strrpos($authority, needle: '@');
-
-        if ($at !== false) {
-            $userInfo = $this->parseUserInfo(substr($authority, offset: 0, length: $at));
-            $authority = substr($authority, $at + 1);
-        }
-
-        $hostAndPort = [];
-
-        if (!preg_match(self::HOST_PORT_PATTERN, $authority, $hostAndPort)) {
-            throw InvalidUriException::forInvalidUri($uri);
-        }
-
-        [, $host, $port] = $hostAndPort + ['', '', ''];
-
-        return [$userInfo, $this->normalizeHost($host), $this->parsePort($uri, $port)];
-    }
-
-    /**
-     * The port group keeps its colon: ':' alone is an empty port, which RFC 3986 allows and means none.
-     *
-     * @throws InvalidUriException
-     */
-    private function parsePort(string $uri, string $port): ?int
-    {
-        if (strlen($port) <= 1) {
-            return null;
-        }
-
-        if (strlen($port) > 6) {
-            throw InvalidUriException::forInvalidUri($uri);
-        }
-
-        return $this->validatePort((int) substr($port, offset: 1));
-    }
-
-    private function parseUserInfo(#[SensitiveParameter] string $userInfo): string
-    {
-        $colon = strpos($userInfo, needle: ':');
-
-        if ($colon === false) {
-            return $this->buildUserInfo($userInfo, null);
-        }
-
-        return $this->buildUserInfo(substr($userInfo, offset: 0, length: $colon), substr($userInfo, $colon + 1));
-    }
-
-    /**
-     * @throws InvalidUriException
      */
     private function normalizeScheme(string $scheme): string
     {
@@ -364,121 +282,13 @@ final readonly class Uri implements UriInterface, Stringable
         return strtolower($scheme);
     }
 
-    /**
-     * @throws InvalidUriException
-     */
-    private function normalizeHost(string $host): string
-    {
-        if ($host === '') {
-            return '';
-        }
-
-        if (str_starts_with($host, '[')) {
-            return $this->normalizeIpLiteral($host);
-        }
-
-        if (!preg_match(self::HOST_PATTERN, $host)) {
-            throw InvalidUriException::invalidHost($host);
-        }
-
-        return strtolower($host);
-    }
-
-    /**
-     * @throws InvalidUriException
-     */
-    private function normalizeIpLiteral(string $host): string
-    {
-        if (!str_ends_with($host, ']')) {
-            throw InvalidUriException::invalidIpLiteralHost($host);
-        }
-
-        $literal = substr($host, offset: 1, length: -1);
-        $isIpv6 = filter_var($literal, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6) !== false;
-        $isIpvFuture = preg_match(self::IP_FUTURE_PATTERN, $literal) === 1;
-
-        if (!$isIpv6 && !$isIpvFuture) {
-            throw InvalidUriException::invalidIpLiteralHost($host);
-        }
-
-        return strtolower($host);
-    }
-
-    /**
-     * @throws InvalidUriException
-     */
-    private function validatePort(int $port): int
-    {
-        if ($port < 1 || $port > 65_535) {
-            throw InvalidUriException::invalidPort($port);
-        }
-
-        return $port;
-    }
-
     private function encodePath(string $path): string
     {
-        return $this->percentEncode($path, "!$&'()*+,;=:@/");
+        return PercentEncoding::encode($path, "!$&'()*+,;=:@/");
     }
 
     private function encodeQueryOrFragment(string $value): string
     {
-        return $this->percentEncode($value, "!$&'()*+,;=:@/?");
-    }
-
-    private function buildUserInfo(string $user, #[SensitiveParameter] ?string $password): string
-    {
-        if ($user === '') {
-            return '';
-        }
-
-        // The first colon separates the user from the password, so only the password may contain one unencoded.
-        $userInfo = $this->percentEncode($user, "!$&'()*+,;=");
-
-        if ($password !== null) {
-            $userInfo .= ':' . $this->percentEncode($password, "!$&'()*+,;=:");
-        }
-
-        return $userInfo;
-    }
-
-    private function percentEncode(string $value, string $extraAllowed): string
-    {
-        $encoded = '';
-        $length = strlen($value);
-
-        for ($i = 0; $i < $length; $i++) {
-            $character = $value[$i];
-
-            if (
-                $character === '%'
-                && ($i + 2) < $length
-                && ctype_xdigit($value[$i + 1])
-                && ctype_xdigit($value[$i + 2])
-            ) {
-                $encoded .= substr($value, $i, length: 3);
-                $i += 2;
-
-                continue;
-            }
-
-            $ordinal = ord($character);
-
-            $isUnreserved =
-                $ordinal >= 65 && $ordinal <= 90
-                || $ordinal >= 97 && $ordinal <= 122
-                || $ordinal >= 48 && $ordinal <= 57
-                || str_contains('-._~', $character);
-
-            if ($isUnreserved || str_contains($extraAllowed, $character)) {
-                $encoded .= $character;
-
-                continue;
-            }
-
-            $encoded .= sprintf('%%%02X', $ordinal);
-        }
-
-        return $encoded;
+        return PercentEncoding::encode($value, "!$&'()*+,;=:@/?");
     }
 }

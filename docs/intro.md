@@ -19,7 +19,7 @@ work with these classes, and code written against the PSR interfaces can swap th
 | `UploadedFile` | `UploadedFileInterface` | A file uploaded with a request. |
 
 The `StatusCode` enum names every registered HTTP status code, so application code can write `StatusCode::NotFound`
-instead of `404`.
+instead of `404`. The `UploadError` enum does the same for PHP's upload error codes.
 
 Every message is immutable. A `with*()` method never changes the object it is called on; it returns a changed copy, or
 the same object when nothing changes. Always use the returned value.

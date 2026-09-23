@@ -33,7 +33,7 @@ $file = new UploadedFile(
 | --- | --- | --- | --- |
 | `stream` | `?StreamInterface` | | The file's contents. Required when the upload succeeded. |
 | `size` | `?int` | `null` | The size in bytes, when known. |
-| `error` | `int` | `UPLOAD_ERR_OK` | One of PHP's `UPLOAD_ERR_*` constants. |
+| `error` | `int\|UploadError` | `UploadError::Ok` | An `UploadError` case, or one of PHP's `UPLOAD_ERR_*` constants. |
 | `clientFilename` | `?string` | `null` | The filename the client sent. |
 | `clientMediaType` | `?string` | `null` | The media type the client sent. |
 | `sourcePath` | `?string` | `null` | The path of the file on disk, used by `moveTo()`. |
@@ -52,9 +52,38 @@ and do not trust the media type to describe the contents.
 
 ## Read the file
 
-`getSize()`, `getError()`, `getClientFilename()`, and `getClientMediaType()` return what was given. `getStream()`
-returns the contents. It throws `UploadedFileException::uploadFailed()` when the upload failed and
+`getSize()`, `getClientFilename()`, and `getClientMediaType()` return what was given, and `getError()` returns the error
+code as an `int`, as PSR-7 requires. `getStream()` returns the contents. It throws
+`UploadedFileException::uploadFailed()` when the upload failed, with a message that says why, and
 `UploadedFileException::alreadyMoved()` after `moveTo()`.
+
+## Upload errors
+
+`Dirthara\Http\UploadError` is an `int`-backed enum with a case for each of PHP's `UPLOAD_ERR_*` constants, backed by
+that constant. Turn the code `getError()` returns into a case with `UploadError::from()`:
+
+```php
+use Dirthara\Http\UploadError;
+
+$error = UploadError::from($file->getError());
+
+if (!$error->isOk()) {
+    echo $error->description();
+}
+```
+
+| Case | Constant | `description()` |
+| --- | --- | --- |
+| `Ok` | `UPLOAD_ERR_OK` | The file was uploaded successfully. |
+| `IniSize` | `UPLOAD_ERR_INI_SIZE` | The file exceeds the upload_max_filesize directive in php.ini. |
+| `FormSize` | `UPLOAD_ERR_FORM_SIZE` | The file exceeds the MAX_FILE_SIZE directive in the HTML form. |
+| `Partial` | `UPLOAD_ERR_PARTIAL` | The file was only partially uploaded. |
+| `NoFile` | `UPLOAD_ERR_NO_FILE` | No file was uploaded. |
+| `NoTemporaryDirectory` | `UPLOAD_ERR_NO_TMP_DIR` | The temporary folder is missing. |
+| `CannotWrite` | `UPLOAD_ERR_CANT_WRITE` | The file could not be written to disk. |
+| `Extension` | `UPLOAD_ERR_EXTENSION` | A PHP extension stopped the upload. |
+
+`isOk()` is `true` only for `Ok`.
 
 ## Move the file
 

@@ -70,7 +70,8 @@ A mode starts with `r`, `w`, `a`, `x`, or `c`, and can add `+` and the flags `b`
 `createUri($uri = '')` parses a URI string, and throws `InvalidUriException` for one it cannot parse.
 
 `createUploadedFile($stream, $size, $error, $clientFilename, $clientMediaType)` creates an uploaded file from a stream.
-The size defaults to the stream's size, and the error to `UPLOAD_ERR_OK`. A stream that is not readable throws
+The size defaults to the stream's size, and the error, an `int` or an [`UploadError`](uploaded-files.md#upload-errors),
+to `UploadError::Ok`. A stream that is not readable throws
 `InvalidUploadedFileException::streamNotReadable()`.
 
 :::note

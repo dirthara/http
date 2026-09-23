@@ -18,12 +18,9 @@ use function fstat;
 use function ftell;
 use function fclose;
 use function fwrite;
-use function in_array;
 use function is_resource;
-use function str_contains;
 use function get_resource_type;
 use function stream_get_contents;
-use function stream_get_meta_data;
 
 final class Stream implements StreamInterface, Stringable
 {
@@ -34,11 +31,9 @@ final class Stream implements StreamInterface, Stringable
      */
     private $resource;
 
-    private bool $readable;
+    private readonly StreamMode $mode;
 
-    private bool $writable;
-
-    private bool $seekable;
+    private readonly bool $seekable;
 
     /**
      * @param resource $resource
@@ -53,12 +48,10 @@ final class Stream implements StreamInterface, Stringable
 
         $this->resource = $resource;
 
-        $metadata = stream_get_meta_data($resource);
-        $mode = $metadata['mode'];
+        $metadata = StreamMetadata::fromResource($resource);
 
-        $this->readable = $this->determineReadable($mode);
-        $this->writable = $this->determineWritable($mode);
-        $this->seekable = $metadata['seekable'];
+        $this->mode = $metadata->mode;
+        $this->seekable = $metadata->seekable;
     }
 
     public function __toString(): string
@@ -95,9 +88,6 @@ final class Stream implements StreamInterface, Stringable
         $resource = $this->resource;
 
         $this->resource = null;
-        $this->readable = false;
-        $this->writable = false;
-        $this->seekable = false;
 
         return $resource;
     }
@@ -173,7 +163,7 @@ final class Stream implements StreamInterface, Stringable
 
     public function isWritable(): bool
     {
-        return $this->resource !== null && $this->writable;
+        return $this->resource !== null && $this->mode->isWritable();
     }
 
     /**
@@ -183,7 +173,7 @@ final class Stream implements StreamInterface, Stringable
     {
         $resource = $this->getResource();
 
-        if (!$this->writable) {
+        if (!$this->mode->isWritable()) {
             throw StreamException::notWritable();
         }
 
@@ -202,7 +192,7 @@ final class Stream implements StreamInterface, Stringable
 
     public function isReadable(): bool
     {
-        return $this->resource !== null && $this->readable;
+        return $this->resource !== null && $this->mode->isReadable();
     }
 
     /**
@@ -217,7 +207,7 @@ final class Stream implements StreamInterface, Stringable
 
         $resource = $this->getResource();
 
-        if (!$this->readable) {
+        if (!$this->mode->isReadable()) {
             throw StreamException::notReadable();
         }
 
@@ -242,7 +232,7 @@ final class Stream implements StreamInterface, Stringable
     {
         $resource = $this->getResource();
 
-        if (!$this->readable) {
+        if (!$this->mode->isReadable()) {
             throw StreamException::notReadable();
         }
 
@@ -260,14 +250,10 @@ final class Stream implements StreamInterface, Stringable
             return $key === null ? [] : null;
         }
 
-        $metadata = stream_get_meta_data($this->resource);
-
-        if ($key === null) {
-            return $metadata;
-        }
+        $metadata = StreamMetadata::fromResource($this->resource);
 
         // @mago-expect analysis:mixed-return-statement -- a wrapper's metadata has no single type
-        return $metadata[$key] ?? null;
+        return $key === null ? $metadata->all() : $metadata->get($key);
     }
 
     /**
@@ -282,23 +268,5 @@ final class Stream implements StreamInterface, Stringable
         }
 
         return $this->resource;
-    }
-
-    private function determineReadable(string $mode): bool
-    {
-        if ($mode === '') {
-            return false;
-        }
-
-        return $mode[0] === 'r' || str_contains($mode, '+');
-    }
-
-    private function determineWritable(string $mode): bool
-    {
-        if ($mode === '') {
-            return false;
-        }
-
-        return in_array($mode[0], ['w', 'a', 'x', 'c'], strict: true) || str_contains($mode, '+');
     }
 }

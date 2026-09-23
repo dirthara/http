@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Dirthara\Http\Tests;
 
 use RuntimeException;
+use Dirthara\Http\UploadError;
 use Dirthara\Http\UploadedFile;
 use PHPUnit\Framework\TestCase;
 use PHPUnit\Framework\Attributes\Test;
@@ -123,9 +124,17 @@ final class UploadedFileTest extends TestCase
 
             self::fail('Expected an UploadedFileException.');
         } catch (UploadedFileException $exception) {
-            self::assertSame('The upload failed with error code "4".', $exception->getMessage());
+            self::assertSame('The upload failed with error code "4": No file was uploaded.', $exception->getMessage());
             self::assertSame(['error' => UPLOAD_ERR_NO_FILE], $exception->context);
         }
+    }
+
+    #[Test]
+    public function it_takes_an_upload_error_case(): void
+    {
+        $file = new UploadedFile(null, error: UploadError::NoFile);
+
+        self::assertSame(UPLOAD_ERR_NO_FILE, $file->getError());
     }
 
     #[Test]
@@ -150,7 +159,9 @@ final class UploadedFileTest extends TestCase
     public function it_refuses_to_move_an_upload_that_failed(): void
     {
         $this->expectException(UploadedFileException::class);
-        $this->expectExceptionMessage('The upload failed with error code "1".');
+        $this->expectExceptionMessage(
+            'The upload failed with error code "1": The file exceeds the upload_max_filesize directive in php.ini.',
+        );
 
         new UploadedFile(null, error: UPLOAD_ERR_INI_SIZE)->moveTo($this->path('target'));
     }

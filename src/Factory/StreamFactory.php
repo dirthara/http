@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Dirthara\Http\Factory;
 
 use Dirthara\Http\Stream;
+use Dirthara\Http\StreamMode;
 use Psr\Http\Message\StreamInterface;
 use Dirthara\Http\Exception\StreamException;
 use Psr\Http\Message\StreamFactoryInterface;
@@ -12,13 +13,10 @@ use Dirthara\Http\Exception\InvalidStreamException;
 
 use function fopen;
 use function is_dir;
-use function preg_match;
 use function str_contains;
 
 final readonly class StreamFactory implements StreamFactoryInterface
 {
-    private const string MODE_PATTERN = '/^[rwaxc][bte]*\+?[bte]*$/D';
-
     /**
      * @throws InvalidStreamException
      * @throws StreamException
@@ -38,9 +36,7 @@ final readonly class StreamFactory implements StreamFactoryInterface
      */
     public function createStreamFromFile(string $filename, string $mode = 'r'): StreamInterface
     {
-        if (!preg_match(self::MODE_PATTERN, $mode)) {
-            throw InvalidStreamException::invalidMode($mode);
-        }
+        $mode = StreamMode::fromString($mode)->mode;
 
         if ($filename === '' || str_contains($filename, "\0")) {
             throw InvalidStreamException::invalidFilename($filename);

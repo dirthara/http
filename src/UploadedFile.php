@@ -19,26 +19,13 @@ use function strlen;
 use function substr;
 use function unlink;
 use function is_file;
-use function in_array;
 use function str_contains;
 use function is_uploaded_file;
 use function move_uploaded_file;
 
 final class UploadedFile implements UploadedFileInterface
 {
-    /**
-     * @var list<int>
-     */
-    private const array VALID_ERRORS = [
-        UPLOAD_ERR_OK,
-        UPLOAD_ERR_INI_SIZE,
-        UPLOAD_ERR_FORM_SIZE,
-        UPLOAD_ERR_PARTIAL,
-        UPLOAD_ERR_NO_FILE,
-        UPLOAD_ERR_NO_TMP_DIR,
-        UPLOAD_ERR_CANT_WRITE,
-        UPLOAD_ERR_EXTENSION,
-    ];
+    private readonly UploadError $error;
 
     private bool $moved = false;
 
@@ -48,14 +35,14 @@ final class UploadedFile implements UploadedFileInterface
     public function __construct(
         private ?StreamInterface $stream,
         private readonly ?int $size = null,
-        private readonly int $error = UPLOAD_ERR_OK,
+        int|UploadError $error = UploadError::Ok,
         private readonly ?string $clientFilename = null,
         private readonly ?string $clientMediaType = null,
         private readonly ?string $sourcePath = null,
     ) {
-        if (!in_array($error, self::VALID_ERRORS, strict: true)) {
-            throw InvalidUploadedFileException::invalidError($error);
-        }
+        $this->error = $error instanceof UploadError
+            ? $error
+            : UploadError::tryFrom($error) ?? throw InvalidUploadedFileException::invalidError($error);
 
         if ($size !== null && $size < 0) {
             throw InvalidUploadedFileException::invalidSize($size);
@@ -65,7 +52,7 @@ final class UploadedFile implements UploadedFileInterface
             throw InvalidUploadedFileException::emptySourcePath();
         }
 
-        if ($error === UPLOAD_ERR_OK && $stream === null) {
+        if ($this->error->isOk() && $stream === null) {
             throw InvalidUploadedFileException::missingStream();
         }
     }
@@ -114,7 +101,7 @@ final class UploadedFile implements UploadedFileInterface
 
     public function getError(): int
     {
-        return $this->error;
+        return $this->error->value;
     }
 
     public function getClientFilename(): ?string
@@ -136,7 +123,7 @@ final class UploadedFile implements UploadedFileInterface
             throw UploadedFileException::alreadyMoved();
         }
 
-        if ($this->error !== UPLOAD_ERR_OK) {
+        if (!$this->error->isOk()) {
             throw UploadedFileException::uploadFailed($this->error);
         }
     }

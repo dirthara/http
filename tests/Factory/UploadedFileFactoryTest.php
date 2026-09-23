@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Dirthara\Http\Tests\Factory;
 
 use Dirthara\Http\Stream;
+use Dirthara\Http\UploadError;
 use PHPUnit\Framework\TestCase;
 use PHPUnit\Framework\Attributes\Test;
 use Dirthara\Http\Factory\StreamFactory;
@@ -46,7 +47,7 @@ final class UploadedFileFactoryTest extends TestCase
     {
         $file = new UploadedFileFactory()->createUploadedFile(
             new StreamFactory()->createStream(),
-            error: UPLOAD_ERR_NO_FILE,
+            error: UploadError::NoFile,
         );
 
         self::assertSame(UPLOAD_ERR_NO_FILE, $file->getError());

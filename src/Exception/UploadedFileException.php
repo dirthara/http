@@ -6,6 +6,7 @@ namespace Dirthara\Http\Exception;
 
 use Throwable;
 use RuntimeException;
+use Dirthara\Http\UploadError;
 
 use function sprintf;
 use function is_string;
@@ -29,11 +30,14 @@ final class UploadedFileException extends RuntimeException implements HttpExcept
         return new self(message: 'The uploaded file has already been moved.');
     }
 
-    public static function uploadFailed(int $error): self
+    public static function uploadFailed(UploadError $error): self
     {
-        return new self(message: sprintf('The upload failed with error code "%d".', $error), context: [
-            'error' => $error,
-        ]);
+        return new self(
+            message: sprintf('The upload failed with error code "%d": %s', $error->value, $error->description()),
+            context: [
+                'error' => $error->value,
+            ],
+        );
     }
 
     public static function streamUnavailable(): self
