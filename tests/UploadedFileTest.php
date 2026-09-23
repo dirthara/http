@@ -269,14 +269,15 @@ final class UploadedFileTest extends TestCase
             self::fail('Expected an UploadedFileException.');
         } catch (UploadedFileException $exception) {
             self::assertSame('Unable to read from uploaded file stream.', $exception->getMessage());
-            self::assertInstanceOf(UploadedFileException::class, $exception->getPrevious());
+            self::assertSame(['targetPath' => $target], $exception->context);
+            self::assertNull($exception->getPrevious());
         }
 
         self::assertFileDoesNotExist($target);
     }
 
     #[Test]
-    public function it_wraps_a_failure_the_stream_raises(): void
+    public function it_wraps_a_runtime_failure_the_stream_raises_without_its_message(): void
     {
         $failure = new RuntimeException('the stream gave up');
         $stream = new MemoryStream('contents');
@@ -288,7 +289,8 @@ final class UploadedFileTest extends TestCase
 
             self::fail('Expected an UploadedFileException.');
         } catch (UploadedFileException $exception) {
-            self::assertSame('the stream gave up', $exception->getMessage());
+            self::assertSame('Unable to read from uploaded file stream.', $exception->getMessage());
+            self::assertSame(['targetPath' => $target], $exception->context);
             self::assertSame($failure, $exception->getPrevious());
         }
 
@@ -308,7 +310,8 @@ final class UploadedFileTest extends TestCase
             self::fail('Expected an UploadedFileException.');
         } catch (UploadedFileException $exception) {
             self::assertSame('Unable to write uploaded file.', $exception->getMessage());
-            self::assertInstanceOf(UploadedFileException::class, $exception->getPrevious());
+            self::assertSame(['targetPath' => '/dev/full'], $exception->context);
+            self::assertNull($exception->getPrevious());
         }
     }
 

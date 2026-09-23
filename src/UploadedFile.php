@@ -4,8 +4,9 @@ declare(strict_types=1);
 
 namespace Dirthara\Http;
 
-use Throwable;
+use RuntimeException;
 use Psr\Http\Message\StreamInterface;
+use Dirthara\Http\Exception\HttpException;
 use Psr\Http\Message\UploadedFileInterface;
 use Dirthara\Http\Exception\UploadedFileException;
 use Dirthara\Http\Exception\InvalidUploadedFileException;
@@ -202,18 +203,19 @@ final class UploadedFile implements UploadedFileInterface
                         break;
                     }
 
-                    throw UploadedFileException::unableToReadStream();
+                    throw UploadedFileException::unableToReadStream($targetPath);
                 }
 
                 $this->write($target, $chunk);
             }
-        } catch (Throwable $exception) {
-            fclose($target);
+        } catch (HttpException $exception) {
+            $this->discardTarget($target, $targetPath);
 
-            // @mago-expect lint:no-error-control-operator -- best-effort cleanup while unwinding
-            @unlink($targetPath);
+            throw $exception->addContext(['targetPath' => $targetPath]);
+        } catch (RuntimeException $exception) {
+            $this->discardTarget($target, $targetPath);
 
-            throw UploadedFileException::fromThrowable($exception);
+            throw UploadedFileException::unableToReadStream($targetPath, $exception);
         }
 
         if (!fclose($target)) {
@@ -249,6 +251,17 @@ final class UploadedFile implements UploadedFileInterface
 
             $offset += $written;
         }
+    }
+
+    /**
+     * @param resource $target
+     */
+    private function discardTarget($target, string $targetPath): void
+    {
+        fclose($target);
+
+        // @mago-expect lint:no-error-control-operator -- best-effort cleanup while unwinding
+        @unlink($targetPath);
     }
 
     private function finishMove(): void

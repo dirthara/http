@@ -2,27 +2,41 @@
 id: installation
 title: Installation
 sidebar_position: 2
-description: Requirements and installation status for Dirthara Http.
+description: PHP requirements, Composer installation, and autoloading.
 ---
 
 ## Requirements
 
-PHP 8.5 or later within the PHP 8 series is required. The package has no runtime
-Composer dependencies beyond PHP.
+The package requires PHP `^8.5`: PHP 8.5 or a later PHP 8 release, with the `ctype` extension. Composer installs its two
+runtime dependencies, the PSR interface packages it implements:
 
-## Package installation
+| Package | Provides |
+| --- | --- |
+| `psr/http-message` `^2.0` | The PSR-7 message interfaces. |
+| `psr/http-factory` `^1.1` | The PSR-17 factory interfaces. |
 
-Once published, install the package using Composer:
+## Install with Composer
+
+For a published release, run:
 
 ```sh
 composer require dirthara/http
 ```
 
-:::caution
-There is no published release yet. The command above describes the intended
-installation after publication.
+Composer installs the package and registers the `Dirthara\Http` namespace with its autoloader. In a standalone
+application, load that autoloader before using the package. Framework applications commonly load it during bootstrap.
+
+```php
+require 'vendor/autoload.php';
+
+use Dirthara\Http\Factory\ResponseFactory;
+
+$response = new ResponseFactory()->createResponse();
+```
+
+:::note
+The Composer command requires a release to be available in your configured repositories. To work from a local checkout
+before publication, configure a Composer path repository in the consuming application.
 :::
 
-For development, follow the Docker and Composer setup in the repository's
-[README](https://github.com/dirthara/http#readme). Development tooling
-includes PHPUnit, Mago, and Xdebug.
+Continue with [getting started](getting-started.md).

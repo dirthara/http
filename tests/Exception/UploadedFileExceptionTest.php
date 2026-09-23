@@ -32,24 +32,28 @@ final class UploadedFileExceptionTest extends TestCase
     }
 
     #[Test]
-    public function it_wraps_a_throwable_and_keeps_its_int_code(): void
+    public function it_describes_a_stream_read_that_failed_without_the_cause_message(): void
     {
-        $previous = new RuntimeException('Read failed.', 5);
-        $exception = UploadedFileException::fromThrowable($previous);
+        $previous = new RuntimeException('secret token abc123', 5);
+        $exception = UploadedFileException::unableToReadStream('/tmp/target', $previous);
 
-        self::assertSame('Read failed.', $exception->getMessage());
-        self::assertSame(5, $exception->getCode());
+        self::assertSame('Unable to read from uploaded file stream.', $exception->getMessage());
+        self::assertSame(0, $exception->getCode());
         self::assertSame($previous, $exception->getPrevious());
+        self::assertSame(['targetPath' => '/tmp/target'], $exception->context);
     }
 
     #[Test]
-    public function it_drops_a_string_code_from_a_wrapped_throwable(): void
+    public function it_keeps_the_sqlstate_of_a_failure_that_reports_one(): void
     {
         $previous = new class('Query failed.') extends RuntimeException {
             protected $code = 'HY000';
         };
 
-        self::assertSame(0, UploadedFileException::fromThrowable($previous)->getCode());
+        self::assertSame(
+            ['targetPath' => '/tmp/target', 'sqlState' => 'HY000'],
+            UploadedFileException::unableToReadStream('/tmp/target', $previous)->context,
+        );
     }
 
     #[Test]

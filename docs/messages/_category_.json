@@ -1,0 +1,8 @@
+{
+  "label": "HTTP messages",
+  "position": 4,
+  "link": {
+    "type": "generated-index",
+    "description": "Requests, server requests, and responses, and the headers, protocol version, and body they share."
+  }
+}

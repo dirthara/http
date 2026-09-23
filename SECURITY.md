@@ -12,21 +12,28 @@ While the package is pre-1.0, only the latest release line receives fixes.
 ## Reporting a vulnerability
 
 Report vulnerabilities privately using GitHub's
-[Report a vulnerability](https://github.com/dirthara/http/security/advisories/new)
-form. Do not disclose vulnerabilities in public issues or pull requests.
+[Report a vulnerability](https://github.com/dirthara/http/security/advisories/new) form. Do not disclose vulnerabilities
+in public issues or pull requests.
 
-Include the affected version or commit, PHP version, a minimal reproduction,
-and the impact and conditions needed to trigger the issue. Maintainers will
-acknowledge and assess the report. Confirmed fixes are published with an
-advisory crediting the reporter unless they prefer otherwise.
+Include the affected version or commit, PHP version, a minimal reproduction, and the impact and conditions needed to
+trigger the issue. Maintainers will acknowledge and assess the report. Confirmed fixes are published with an advisory
+crediting the reporter unless they prefer otherwise.
 
 ## Scope
 
-This repository currently contains package infrastructure and no public
-implementation. Report security issues in this package's code or development
-configuration. As the package's behaviour is introduced, update this policy
-with its security boundaries.
+Report security issues in message, URI, stream, uploaded file, or factory behaviour, in exception handling, or in the
+development configuration.
 
-Bugs in PHP or third-party dependencies should also be reported upstream.
-Application code and the sensitivity of data an application chooses to store
-are the application's responsibility.
+The package defends against malformed HTTP messages. It refuses header names that are not tokens, header values and
+reason phrases containing line breaks or other control characters, and request targets containing whitespace, so
+application input cannot split a message or inject a header. Methods, protocol versions, status codes, and URI
+components are validated when they are set. Header values, request targets, and parsed bodies are kept out of exception
+messages and context. Whole URIs and file paths are included, for diagnosis.
+
+The package does not decide what is safe to send or accept. It does not authenticate or authorize requests, limit their
+size, sanitize bodies, or validate uploaded file contents. Client-supplied filenames and media types are returned as
+given. Moving an uploaded file writes to the target path the application chooses. Applications remain responsible for
+those boundaries.
+
+Bugs in PHP or third-party dependencies should also be reported upstream. Application code and the sensitivity of data
+an application chooses to store are the application's responsibility.

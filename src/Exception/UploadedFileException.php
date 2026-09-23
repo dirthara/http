@@ -59,9 +59,15 @@ final class UploadedFileException extends RuntimeException implements HttpExcept
         ]);
     }
 
-    public static function unableToReadStream(): self
+    public static function unableToReadStream(string $targetPath, ?Throwable $previous = null): self
     {
-        return new self(message: 'Unable to read from uploaded file stream.');
+        // A PDOException reports a string SQLSTATE as its code, which an int code cannot hold.
+        $code = $previous?->getCode();
+
+        return new self(message: 'Unable to read from uploaded file stream.', previous: $previous, context: [
+            'targetPath' => $targetPath,
+            ...(is_string($code) ? ['sqlState' => $code] : []),
+        ]);
     }
 
     public static function unableToWrite(): self
@@ -74,20 +80,5 @@ final class UploadedFileException extends RuntimeException implements HttpExcept
         return new self(message: sprintf('Unable to close target file "%s".', $targetPath), context: [
             'targetPath' => $targetPath,
         ]);
-    }
-
-    public static function fromThrowable(Throwable $throwable): self
-    {
-        // A PDOException reports a string SQLSTATE as its code, which an int code cannot hold.
-        $code = $throwable->getCode();
-
-        return new self(
-            message: $throwable->getMessage(),
-            code: is_int($code) ? $code : 0,
-            previous: $throwable,
-            context: [
-                'sqlState' => is_int($code) ? null : $code,
-            ],
-        );
     }
 }
